@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function isMember(groupId) {
+      return isAuth() &&
+        request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.memberUids;
+    }
+
+    function isTablePlayer(tableId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/tables/$(tableId)/players/$(request.auth.uid));
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read:   if isAuth();
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if false;
+    }
+
+    // ── Tables ────────────────────────────────────────────────────────────
+    match /tables/{tableId} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if isTablePlayer(tableId);
+      allow delete: if isAuth()
+                    && resource.data.createdBy == request.auth.uid
+                    && resource.data.status == 'waiting';
+    }
+
+    match /tables/{tableId}/players/{uid} {
+      allow read:  if isAuth();
+      allow write: if isAuth() && (
+        isOwner(uid) ||
+        get(/databases/$(database)/documents/tables/$(tableId)).data.createdBy == request.auth.uid
+      );
+    }
+
+    match /tables/{tableId}/rounds/{roundId} {
+      allow read:  if isAuth();
+      allow write: if isTablePlayer(tableId);
+    }
+
+    // PRIVATE: only the hand owner can read their cards
+    match /tables/{tableId}/hands/{uid} {
+      allow read:  if isOwner(uid);
+      allow write: if isTablePlayer(tableId);
+    }
+
+    // ── Games archive (immutable after creation) ──────────────────────────
+    match /games/{gameId} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── Groups ────────────────────────────────────────────────────────────
+    match /groups/{groupId} {
+      allow read:   if isMember(groupId);
+      allow create: if isAuth();
+      allow update: if isMember(groupId);
+      allow delete: if isAuth()
+                    && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /groups/{groupId}/members/{uid} {
+      allow read:  if isMember(groupId);
+      allow write: if isAuth() && (
+        isOwner(uid) ||
+        get(/databases/$(database)/documents/groups/$(groupId)).data.createdBy == request.auth.uid
+      );
+    }
+  }
+}
