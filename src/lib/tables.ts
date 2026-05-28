@@ -149,6 +149,7 @@ export async function startGame(
   const playerOrder = fisherYates(players.map(p => p.uid))
   const scores = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
   const consecutiveHits = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
+  const consecutiveMisses = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
   const roundSequence = getRoundSequence(gameMode, playerOrder.length)
 
   await updateDoc(doc(db, 'tables', tableId), {
@@ -156,6 +157,7 @@ export async function startGame(
     playerOrder,
     scores,
     consecutiveHits,
+    consecutiveMisses,
     currentRound: 0,
     roundSequence,
     totalRounds: roundSequence.length,
@@ -174,7 +176,7 @@ export async function createRound(
 ): Promise<void> {
   const cardsPerPlayer = roundSequence[roundIndex]
   const seed = `${tableId}-round-${roundIndex}`
-  const deck = seededShuffle(generateDeck(), seed)
+  const deck = seededShuffle(generateDeck(playerOrder.length), seed)
 
   const hands = dealCards(deck, playerOrder, cardsPerPlayer)
   const trumpCard = getTrumpCard(deck, playerOrder.length, cardsPerPlayer)
@@ -303,6 +305,7 @@ function parseTableMeta(id: string, d: ReturnType<typeof doc> extends never ? ne
     gameMode: (data.gameMode as GameMode) ?? 'mountain',
     roundSequence: (data.roundSequence as number[]) ?? [],
     consecutiveHits: (data.consecutiveHits as Record<string, number>) ?? {},
+    consecutiveMisses: (data.consecutiveMisses as Record<string, number>) ?? {},
     groupId: (data.groupId as string | null) ?? null,
   }
 }

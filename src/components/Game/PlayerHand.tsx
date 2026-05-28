@@ -18,7 +18,7 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
 
   const isMyTurn = round.currentPlayer === user?.uid && round.phase === 'playing'
   const ledSuit = round.currentTrick.length > 0 ? round.currentTrick[0].card.suit : null
-  const legalCards = isMyTurn ? getLegalCards(hand.cards, ledSuit) : []
+  const legalCards = isMyTurn ? getLegalCards(hand.cards, ledSuit, round.trumpSuit) : []
   const legalIds = new Set(legalCards.map(c => c.id))
 
   const handleCardClick = (card: Card) => {

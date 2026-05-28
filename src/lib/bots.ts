@@ -66,7 +66,7 @@ export function getBotCard(hand: PlayerHand, round: RoundState): string {
     ? round.currentTrick[0].card.suit
     : null
 
-  const legal = getLegalCards(hand.cards, ledSuit)
+  const legal = getLegalCards(hand.cards, ledSuit, round.trumpSuit)
   if (legal.length === 0) return hand.cards[0]?.id ?? ''
 
   return legal[Math.floor(Math.random() * legal.length)].id

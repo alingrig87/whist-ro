@@ -53,42 +53,65 @@ export function getRanks(
  *
  * Returns: { newHits, bonusAwarded (set of uids who got the bonus this round) }
  */
+/**
+ * Tracks consecutive hit/miss streaks and awards bonuses/penalties.
+ *
+ * Rules (non-1-card rounds only):
+ * - 5 consecutive HITS  → +10 bonus, streak resets to 0
+ * - 5 consecutive MISSES → -10 penalty, streak resets to 0
+ * - A hit resets the miss streak; a miss resets the hit streak
+ * - 1-card rounds are completely ignored (streaks unchanged)
+ */
 export function applyConsecutiveBonus(
   playerOrder: string[],
   bids: Record<string, number>,
   tricksWon: Record<string, number>,
   currentHits: Record<string, number>,
+  currentMisses: Record<string, number>,
   cardsPerPlayer: number,
 ): {
   newHits: Record<string, number>
+  newMisses: Record<string, number>
   bonusAwarded: Set<string>
+  penaltyAwarded: Set<string>
   bonusDeltas: Record<string, number>
 } {
-  const newHits = { ...currentHits }
-  const bonusAwarded = new Set<string>()
+  const newHits   = { ...currentHits }
+  const newMisses = { ...currentMisses }
+  const bonusAwarded   = new Set<string>()
+  const penaltyAwarded = new Set<string>()
   const bonusDeltas: Record<string, number> = {}
 
   for (const uid of playerOrder) {
     bonusDeltas[uid] = 0
 
-    // 1-card rounds don't affect the streak at all
+    // 1-card rounds don't affect either streak
     if (cardsPerPlayer === 1) continue
 
     const hit = (bids[uid] ?? 0) === (tricksWon[uid] ?? 0)
 
     if (hit) {
-      newHits[uid] = (newHits[uid] ?? 0) + 1
+      newHits[uid]   = (newHits[uid] ?? 0) + 1
+      newMisses[uid] = 0 // miss streak broken
+
       if (newHits[uid] >= 5) {
-        bonusDeltas[uid] = 10
+        bonusDeltas[uid] += 10
         bonusAwarded.add(uid)
-        newHits[uid] = 0 // Reset streak after bonus
+        newHits[uid] = 0
       }
     } else {
-      newHits[uid] = 0 // Miss resets streak
+      newMisses[uid] = (newMisses[uid] ?? 0) + 1
+      newHits[uid]   = 0 // hit streak broken
+
+      if (newMisses[uid] >= 5) {
+        bonusDeltas[uid] -= 10
+        penaltyAwarded.add(uid)
+        newMisses[uid] = 0
+      }
     }
   }
 
-  return { newHits, bonusAwarded, bonusDeltas }
+  return { newHits, newMisses, bonusAwarded, penaltyAwarded, bonusDeltas }
 }
 
 // ─── Apply Round Scores ───────────────────────────────────────────────────────
@@ -106,14 +129,16 @@ export async function applyRoundScores(
     groupId,
     roundSequence,
     consecutiveHits,
+    consecutiveMisses,
   } = table
 
-  // ── Consecutive bonus ───────────────────────────────────────────────────────
-  const { newHits, bonusDeltas } = applyConsecutiveBonus(
+  // ── Consecutive bonus / penalty ─────────────────────────────────────────────
+  const { newHits, newMisses, bonusDeltas } = applyConsecutiveBonus(
     playerOrder,
     round.bids,
     round.tricksWon,
     consecutiveHits,
+    consecutiveMisses,
     round.cardsPerPlayer,
   )
 
@@ -143,6 +168,7 @@ export async function applyRoundScores(
     batch.update(doc(db, 'tables', tableId), {
       scores: newScores,
       consecutiveHits: newHits,
+      consecutiveMisses: newMisses,
       status: 'finished',
     })
 
@@ -194,6 +220,7 @@ export async function applyRoundScores(
     batch.update(doc(db, 'tables', tableId), {
       scores: newScores,
       consecutiveHits: newHits,
+      consecutiveMisses: newMisses,
       currentRound: currentRound + 1,
     })
 

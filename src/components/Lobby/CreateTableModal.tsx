@@ -28,7 +28,7 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
   const { user, profile } = useAuth()
   const [name, setName] = useState(`Masa lui ${profile?.displayName ?? 'jucător'}`)
   const [maxPlayers, setMaxPlayers] = useState(4)
-  const [gameMode, setGameMode] = useState<GameMode>('mountain')
+  const [gameMode, setGameMode] = useState<GameMode>('valley')
   const [groupId, setGroupId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

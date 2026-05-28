@@ -58,6 +58,8 @@ export interface TableMeta {
   roundSequence: number[]
   /** Tracks consecutive exact-bid hits per player (non-1-card rounds only) */
   consecutiveHits: Record<string, number>
+  /** Tracks consecutive bid misses per player (non-1-card rounds only) */
+  consecutiveMisses: Record<string, number>
   groupId: string | null
 }
 

@@ -11,7 +11,7 @@ interface Props {
 
 const MODE_LABELS = {
   mountain: '⛰️ Munte (8→1→8)',
-  valley: '🏔️ Vale (1→8→1)',
+  valley: '🏔️ Vale (1→8→1) — standard',
 }
 
 const MODE_DESC = {

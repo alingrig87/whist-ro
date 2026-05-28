@@ -24,9 +24,17 @@ export const SUIT_COLORS: Record<Suit, string> = {
 
 // ─── Deck Generation ──────────────────────────────────────────────────────────
 
-export function generateDeck(): Card[] {
+/**
+ * Generates only the cards actually used in the game.
+ * Romanian Whist uses the top (playerCount × 8) cards from the full deck.
+ * For 4 players: 32 cards — A,K,Q,J,10,9,8,7 in each suit.
+ * For 3 players: 24 cards — A,K,Q,J,10,9 in each suit.
+ */
+export function generateDeck(playerCount = 4): Card[] {
+  const cardsPerSuit = (playerCount * 8) / 4  // e.g. 4 players → 8 per suit
+  const usedRanks = RANKS.slice(RANKS.length - cardsPerSuit)  // top N ranks
   return SUITS.flatMap(suit =>
-    RANKS.map(rank => ({ suit, rank, id: `${rank}${suit}` })),
+    usedRanks.map(rank => ({ suit, rank, id: `${rank}${suit}` })),
   )
 }
 
@@ -128,10 +136,32 @@ export function getTrumpCard(
 
 // ─── Trick Logic ──────────────────────────────────────────────────────────────
 
-export function getLegalCards(hand: Card[], ledSuit: Suit | null): Card[] {
-  if (!ledSuit) return hand // Leading: any card
+/**
+ * Returns the legal cards a player can play.
+ *
+ * Rules:
+ * 1. Must follow the led suit if possible.
+ * 2. If no cards of led suit AND it's a trump game (trumpSuit != null):
+ *    must play trump if available.
+ * 3. Only if neither led-suit nor trump cards exist: play anything.
+ */
+export function getLegalCards(
+  hand: Card[],
+  ledSuit: Suit | null,
+  trumpSuit: Suit | null = null,
+): Card[] {
+  if (!ledSuit) return hand // Leading: any card is legal
+
   const suitCards = hand.filter(c => c.suit === ledSuit)
-  return suitCards.length > 0 ? suitCards : hand // Must follow suit if possible
+  if (suitCards.length > 0) return suitCards // Must follow suit
+
+  // No cards of led suit — check for trump obligation
+  if (trumpSuit) {
+    const trumpCards = hand.filter(c => c.suit === trumpSuit)
+    if (trumpCards.length > 0) return trumpCards // Must play trump
+  }
+
+  return hand // No led suit, no trump: play anything
 }
 
 function cardBeats(
