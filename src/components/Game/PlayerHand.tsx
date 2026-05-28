@@ -9,9 +9,10 @@ interface Props {
   table: TableMeta
   round: RoundState
   hand: HandType
+  duringBidding?: boolean
 }
 
-export default function PlayerHand({ table, round, hand }: Props) {
+export default function PlayerHand({ table, round, hand, duringBidding = false }: Props) {
   const { user } = useAuth()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
 
@@ -22,11 +23,8 @@ export default function PlayerHand({ table, round, hand }: Props) {
 
   const handleCardClick = (card: Card) => {
     if (!isMyTurn || !legalIds.has(card.id)) return
-
     if (selectedCard === card.id) {
-      // Double-click or re-select → play the card
       handlePlayCard(card)
-      setSelectedCard(null)
     } else {
       setSelectedCard(card.id)
     }
@@ -38,24 +36,26 @@ export default function PlayerHand({ table, round, hand }: Props) {
     setSelectedCard(null)
   }
 
+  const turnLabel = duringBidding
+    ? '🃏 Cărțile tale — licitează mai sus'
+    : isMyTurn
+      ? ledSuit
+        ? `Trebuie să joci ${SUIT_SYMBOLS[ledSuit]} sau atu`
+        : '🃏 Tu conduci levata — alege o carte'
+      : '⏳ Aștepți rândul tău...'
+
   return (
     <div className="player-hand-container">
-      {/* Turn indicator */}
-      <div className={`turn-indicator ${isMyTurn ? 'turn-indicator--active' : ''}`}>
-        {isMyTurn
-          ? ledSuit
-            ? `Trebuie să joci ${SUIT_SYMBOLS[ledSuit]} sau atu`
-            : '🃏 Tu conduci levata — alege o carte'
-          : '⏳ Aștepți rândul tău...'}
+      <div className={`turn-indicator ${isMyTurn ? 'turn-indicator--active' : ''} ${duringBidding ? 'turn-indicator--bidding' : ''}`}>
+        {turnLabel}
       </div>
 
-      {/* Card hand */}
       <div className={`player-hand ${isMyTurn ? 'player-hand--active' : ''}`}>
         {hand.cards.map((card, idx) => (
           <div
             key={card.id}
-            className="hand-card-wrapper"
-            style={{ '--card-idx': idx, '--total-cards': hand.cards.length } as React.CSSProperties}
+            className={`hand-card-wrapper ${duringBidding ? 'hand-card-wrapper--bidding' : ''}`}
+            style={{ zIndex: idx }}
           >
             <CardComponent
               card={card}
@@ -67,7 +67,6 @@ export default function PlayerHand({ table, round, hand }: Props) {
         ))}
       </div>
 
-      {/* Confirm play button (appears when a card is selected) */}
       {selectedCard && (
         <div className="play-confirm">
           <button
@@ -77,12 +76,9 @@ export default function PlayerHand({ table, round, hand }: Props) {
               if (card) handlePlayCard(card)
             }}
           >
-            Joacă această carte ▶
+            ▶ Joacă această carte
           </button>
-          <button
-            className="btn-play-cancel"
-            onClick={() => setSelectedCard(null)}
-          >
+          <button className="btn-play-cancel" onClick={() => setSelectedCard(null)}>
             Anulează
           </button>
         </div>

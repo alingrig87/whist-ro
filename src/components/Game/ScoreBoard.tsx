@@ -1,6 +1,7 @@
 import type { TableMeta, RoundState, TablePlayer } from '../../types'
 import { calculateRoundScore } from '../../lib/scoring'
 import { useAuth } from '../../context/AuthContext'
+import { isBotUid } from '../../lib/bots'
 
 interface Props {
   table: TableMeta
@@ -18,7 +19,7 @@ export default function ScoreBoard({ table, round, players }: Props) {
       <div className="scoreboard-header">
         <span>Scoruri</span>
         <span className="scoreboard-round">
-          Runda {round.roundNumber}/15
+          Runda {round.roundNumber}/{table.totalRounds}
         </span>
       </div>
 
@@ -41,11 +42,12 @@ export default function ScoreBoard({ table, round, players }: Props) {
               key={uid}
               className={`scoreboard-row ${uid === user?.uid ? 'scoreboard-row--me' : ''}`}
             >
-              <img
-                src={player?.photoURL ?? ''}
-                alt=""
-                className="scoreboard-avatar"
-              />
+              {player?.photoURL
+                ? <img src={player.photoURL} alt="" className="scoreboard-avatar" />
+                : <div className="scoreboard-avatar--placeholder">
+                    {isBotUid(uid) ? '🤖' : '👤'}
+                  </div>
+              }
               <div className="scoreboard-name">
                 {player?.displayName ?? uid}
               </div>
