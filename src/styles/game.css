@@ -80,6 +80,37 @@
     0 0 40px rgba(0,0,0,0.6);
 }
 
+/* ─── Round Badge (top-center, always visible) ──────────────────────────── */
+
+.round-badge {
+  position: fixed;
+  top: 10px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(0,0,0,0.72);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 9999px;
+  padding: 6px 18px;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.round-badge-num {
+  font-size: 0.88rem; font-weight: 700; color: #fff;
+}
+.round-badge-cards {
+  font-size: 0.78rem; color: rgba(255,255,255,0.55);
+  border-left: 1px solid rgba(255,255,255,0.15); padding-left: 10px;
+}
+.round-badge-trump {
+  font-size: 0.82rem; font-weight: 600; color: var(--color-accent);
+  border-left: 1px solid rgba(255,255,255,0.15); padding-left: 10px;
+}
+.round-badge-trump--none {
+  color: rgba(255,255,255,0.35);
+}
+
 /* ─── Opponent Players (absolute arc at top) ────────────────────────────── */
 
 .opponent {

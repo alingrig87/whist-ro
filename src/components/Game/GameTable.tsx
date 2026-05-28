@@ -116,11 +116,22 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
       return { uid, relativePos }
     })
 
+  const trumpLabel = round.trumpSuit
+    ? `Atu: ${{ S: '♠ Pică', H: '♥ Cupă', D: '♦ Caro', C: '♣ Treflă' }[round.trumpSuit]}`
+    : 'Fără atu'
+
   return (
     <div className="game-table">
 
       {/* Green felt oval */}
       <div className="table-oval" />
+
+      {/* Round badge — prominent, top-center */}
+      <div className="round-badge">
+        <span className="round-badge-num">Runda {round.roundNumber} / {table.totalRounds}</span>
+        <span className="round-badge-cards">{round.cardsPerPlayer} {round.cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător</span>
+        <span className={`round-badge-trump ${!round.trumpSuit ? 'round-badge-trump--none' : ''}`}>{trumpLabel}</span>
+      </div>
 
       {/* Opponents arranged in arc */}
       {opponents.map(({ uid, relativePos }, i) => {
@@ -147,7 +158,7 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
               <div className="opponent-details">
                 <span className="opponent-name">{player?.displayName ?? uid}</span>
                 <span className="opponent-bid-info">
-                  {bid >= 0 ? `${won}/${bid} levate` : '…'}
+                  {bid >= 0 ? `${won}/${bid} mâini` : '…'}
                 </span>
               </div>
               {isCurrentPlayer && <span className="opponent-turn">🔄</span>}

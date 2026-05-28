@@ -47,7 +47,7 @@ export default function BiddingPanel({ table, round }: Props) {
       {/* Round info */}
       <div className="bidding-info">
         <span className="bidding-round-label">
-          Runda {round.roundNumber}/15 — {cardsPerPlayer} cărți/jucător
+          {cardsPerPlayer} {cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător
         </span>
         {trumpSuit ? (
           <span className="bidding-trump" style={{ color: SUIT_COLORS[trumpSuit] }}>
