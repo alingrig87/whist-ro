@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import CardComponent from './CardComponent'
 import { getLegalCards, SUIT_SYMBOLS } from '../../lib/cards'
 import { playCard } from '../../lib/tables'
@@ -14,56 +14,48 @@ interface Props {
 
 interface DragState {
   cardId: string
-  x: number
-  y: number
   startX: number
   startY: number
+  x: number
+  y: number
 }
+
+// How many pixels upward to trigger a play
+const PLAY_THRESHOLD = 80
 
 export default function PlayerHand({ table, round, hand, duringBidding = false }: Props) {
   const { user } = useAuth()
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
-  const [dragState, setDragState] = useState<DragState | null>(null)
-  const [overDropZone, setOverDropZone] = useState(false)
+  const [drag, setDrag] = useState<DragState | null>(null)
 
   const isMyTurn = round.currentPlayer === user?.uid && round.phase === 'playing'
   const ledSuit = round.currentTrick.length > 0 ? round.currentTrick[0].card.suit : null
   const legalCards = isMyTurn ? getLegalCards(hand.cards, ledSuit, round.trumpSuit) : []
   const legalIds = new Set(legalCards.map(c => c.id))
 
-  // ── Pointer drag (desktop + mobile) ──────────────────────────────────────
+  // Up-distance during current drag (positive = dragging upward)
+  const upDist = drag ? Math.max(0, drag.startY - drag.y) : 0
+  const readyToPlay = upDist >= PLAY_THRESHOLD
+
+  // ── Global pointer tracking ───────────────────────────────────────────────
   useEffect(() => {
-    if (!dragState) return
+    if (!drag) return
 
     const onMove = (e: PointerEvent) => {
-      setDragState(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)
-
-      const zone = document.getElementById('trick-drop-zone')
-      if (zone) {
-        const r = zone.getBoundingClientRect()
-        setOverDropZone(
-          e.clientX >= r.left && e.clientX <= r.right &&
-          e.clientY >= r.top  && e.clientY <= r.bottom
-        )
-      }
+      setDrag(prev => prev ? { ...prev, x: e.clientX, y: e.clientY } : null)
     }
 
     const onUp = (e: PointerEvent) => {
-      const zone = document.getElementById('trick-drop-zone')
-      if (zone) {
-        const r = zone.getBoundingClientRect()
-        const dropped =
-          e.clientX >= r.left && e.clientX <= r.right &&
-          e.clientY >= r.top  && e.clientY <= r.bottom
-        if (dropped && dragState) {
-          const card = hand.cards.find(c => c.id === dragState.cardId)
+      if (drag) {
+        const upDistance = drag.startY - e.clientY
+        if (upDistance >= PLAY_THRESHOLD) {
+          const card = hand.cards.find(c => c.id === drag.cardId)
           if (card && isMyTurn && legalIds.has(card.id)) {
             doPlay(card)
           }
         }
       }
-      setDragState(null)
-      setOverDropZone(false)
+      setDrag(null)
     }
 
     window.addEventListener('pointermove', onMove, { passive: true })
@@ -72,11 +64,12 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [dragState, isMyTurn, hand.cards, legalIds])
+  }, [drag, isMyTurn, hand.cards, JSON.stringify([...legalIds])])
 
   const doPlay = async (card: Card) => {
     if (!user || !isMyTurn || !legalIds.has(card.id)) return
     setSelectedCard(null)
+    setDrag(null)
     await playCard(
       table.id,
       table.currentRound,
@@ -91,17 +84,8 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
   const handlePointerDown = (e: React.PointerEvent, card: Card) => {
     if (!isMyTurn || !legalIds.has(card.id)) return
     e.preventDefault()
-    setDragState({ cardId: card.id, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY })
-  }
-
-  const handleClick = (card: Card) => {
-    if (!isMyTurn || !legalIds.has(card.id)) return
-    // Already selected → play
-    if (selectedCard === card.id) {
-      doPlay(card)
-    } else {
-      setSelectedCard(card.id)
-    }
+    setSelectedCard(card.id)
+    setDrag({ cardId: card.id, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY })
   }
 
   const handleDoubleClick = (card: Card) => {
@@ -109,19 +93,15 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
     doPlay(card)
   }
 
-  const isDragging = (cardId: string) =>
-    dragState?.cardId === cardId
-
-  const dragMoved = dragState
-    ? Math.hypot(dragState.x - dragState.startX, dragState.y - dragState.startY) > 8
-    : false
+  const isDragging = (id: string) => drag?.cardId === id
+  const hasMoved = drag ? Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 6 : false
 
   const turnLabel = duringBidding
     ? '🃏 Cărțile tale — licitează mai sus'
     : isMyTurn
       ? ledSuit
         ? `Trebuie să joci ${SUIT_SYMBOLS[ledSuit]}${round.trumpSuit ? ' sau atu' : ''}`
-        : '🃏 Tu deschizi mâna — dublu-click sau trage cartea în centru'
+        : '🃏 Trage o carte în sus sau fă dublu-click'
       : '⏳ Aștepți rândul tău...'
 
   return (
@@ -130,36 +110,52 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
         {turnLabel}
       </div>
 
+      {/* Drag progress arc — shows how close to playing */}
+      {drag && hasMoved && isMyTurn && (
+        <div className="drag-progress">
+          <div
+            className={`drag-progress-fill ${readyToPlay ? 'drag-progress-fill--ready' : ''}`}
+            style={{ width: `${Math.min(100, (upDist / PLAY_THRESHOLD) * 100)}%` }}
+          />
+          <span className="drag-progress-label">
+            {readyToPlay ? '✓ Lasă să joci!' : 'Trage în sus...'}
+          </span>
+        </div>
+      )}
+
       <div className={`player-hand ${isMyTurn ? 'player-hand--active' : ''}`}>
         {hand.cards.map((card, idx) => (
           <div
             key={card.id}
-            className={`hand-card-wrapper ${duringBidding ? 'hand-card-wrapper--bidding' : ''} ${isDragging(card.id) && dragMoved ? 'hand-card-wrapper--dragging' : ''}`}
+            className={[
+              'hand-card-wrapper',
+              duringBidding ? 'hand-card-wrapper--bidding' : '',
+              isDragging(card.id) && hasMoved ? 'hand-card-wrapper--dragging' : '',
+            ].filter(Boolean).join(' ')}
             style={{ zIndex: selectedCard === card.id ? 20 : idx }}
             onPointerDown={e => handlePointerDown(e, card)}
-            onClick={() => handleClick(card)}
             onDoubleClick={() => handleDoubleClick(card)}
           >
             <CardComponent
               card={card}
-              selected={selectedCard === card.id}
+              selected={selectedCard === card.id && !hasMoved}
               legal={!isMyTurn || legalIds.has(card.id)}
             />
           </div>
         ))}
       </div>
 
-      {/* Drag ghost — follows pointer */}
-      {dragState && dragMoved && (() => {
-        const card = hand.cards.find(c => c.id === dragState.cardId)
+      {/* Ghost card — follows pointer during drag */}
+      {drag && hasMoved && (() => {
+        const card = hand.cards.find(c => c.id === drag.cardId)
         if (!card) return null
         return (
           <div
-            className={`drag-ghost ${overDropZone ? 'drag-ghost--over' : ''}`}
-            style={{ left: dragState.x, top: dragState.y }}
+            className={`drag-ghost ${readyToPlay ? 'drag-ghost--ready' : ''}`}
+            style={{ left: drag.x, top: drag.y }}
             aria-hidden
           >
-            <CardComponent card={card} selected legal />
+            <CardComponent card={card} selected={readyToPlay} legal />
           </div>
         )
       })()}
