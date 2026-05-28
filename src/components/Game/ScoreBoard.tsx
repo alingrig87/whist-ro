@@ -37,9 +37,9 @@ export default function ScoreBoard({ table, round, players }: Props) {
         </div>
         <div className="sb-round-details">
           <span>{round.cardsPerPlayer} {round.cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător</span>
-          {round.trumpSuit ? (
-            <span style={{ color: SUIT_COLORS[round.trumpSuit] }}>
-              Atu: {SUIT_SYMBOLS[round.trumpSuit]}
+          {round.trumpCard ? (
+            <span style={{ color: SUIT_COLORS[round.trumpCard.suit] }}>
+              Atu: <strong>{round.trumpCard.rank}{SUIT_SYMBOLS[round.trumpCard.suit]}</strong>
             </span>
           ) : (
             <span className="sb-no-trump">Fără atu</span>

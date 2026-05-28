@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { resolveTrick, getBiddingOrder, getNextBidder } from '../../lib/cards'
+import { resolveTrick, getBiddingOrder, getNextBidder, SUIT_SYMBOLS, SUIT_COLORS } from '../../lib/cards'
 import { finalizeTrick, submitBid, playCard, transitionToPlaying } from '../../lib/tables'
 import { applyRoundScores } from '../../lib/scoring'
 import { isBotUid, getBotBid, getBotCard, BOT_DELAY_MS } from '../../lib/bots'
-import type { TableMeta, RoundState, TablePlayer, PlayerHand } from '../../types'
+import type { TableMeta, RoundState, TablePlayer, PlayerHand, Card } from '../../types'
 import BiddingPanel from './BiddingPanel'
 import PlayerHandComponent from './PlayerHand'
 import TrickArea from './TrickArea'
@@ -155,10 +155,6 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
       return { uid, relativePos }
     })
 
-  const trumpLabel = round.trumpSuit
-    ? `Atu: ${{ S: '♠ Pică', H: '♥ Cupă', D: '♦ Caro', C: '♣ Treflă' }[round.trumpSuit]}`
-    : 'Fără atu'
-
   return (
     <div className="game-table">
 
@@ -169,7 +165,10 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
       <div className="round-badge">
         <span className="round-badge-num">Runda {round.roundNumber} / {table.totalRounds}</span>
         <span className="round-badge-cards">{round.cardsPerPlayer} {round.cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător</span>
-        <span className={`round-badge-trump ${!round.trumpSuit ? 'round-badge-trump--none' : ''}`}>{trumpLabel}</span>
+        {round.trumpCard
+          ? <TrumpCardBadge card={round.trumpCard} />
+          : <span className="round-badge-trump round-badge-trump--none">Fără atu</span>
+        }
       </div>
 
       {/* Opponents arranged in arc */}
@@ -294,5 +293,15 @@ function ScoringBanner({
       </div>
       <div className="scoring-banner-hint">Se trece la runda următoare...</div>
     </div>
+  )
+}
+
+// Small inline trump card shown in the round badge
+function TrumpCardBadge({ card }: { card: Card }) {
+  const isRed = card.suit === 'H' || card.suit === 'D'
+  return (
+    <span className="trump-card-badge" style={{ color: SUIT_COLORS[card.suit] }}>
+      Atu: <strong>{card.rank}{SUIT_SYMBOLS[card.suit]}</strong>
+    </span>
   )
 }

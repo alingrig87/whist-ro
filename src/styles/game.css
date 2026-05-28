@@ -110,6 +110,11 @@
 .round-badge-trump--none {
   color: rgba(255,255,255,0.35);
 }
+.trump-card-badge {
+  font-size: 0.82rem; color: rgba(255,255,255,0.7);
+  border-left: 1px solid rgba(255,255,255,0.15); padding-left: 10px;
+}
+.trump-card-badge strong { font-size: 0.9rem; letter-spacing: 0.02em; }
 
 /* ─── Opponent Players (absolute arc at top) ────────────────────────────── */
 

@@ -80,6 +80,7 @@ export interface RoundState {
   roundNumber: number
   cardsPerPlayer: number
   trumpSuit: Suit | null
+  trumpCard: Card | null   // the actual card that was flipped to determine trump
   dealer: string
   phase: RoundPhase
   bids: Record<string, number> // -1 = not yet bid
