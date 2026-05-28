@@ -43,7 +43,8 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
   const isHost = user?.uid === table.createdBy
 
   const resolvingTrick = useRef(false)
-  const botActing = useRef(false)
+  // Tracks the last action key to prevent double-firing the bot effect
+  const lastBotActionKey = useRef('')
 
   // ── Trick resolution ────────────────────────────────────────────────────
   useEffect(() => {
@@ -68,13 +69,18 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
   }, [round.currentTrick.length, round.phase, round.trickLeader])
 
   // ── Bidding → playing transition ────────────────────────────────────────
+  // Only the host triggers this, and only once (phase check prevents re-fire)
+  const transitioningRef = useRef(false)
   useEffect(() => {
     if (round.phase !== 'bidding' || !user || !isHost) return
-    const allBid = playerOrder.every(uid => round.bids[uid] >= 0)
+    if (transitioningRef.current) return
+    const allBid = playerOrder.every(uid => (round.bids[uid] ?? -1) >= 0)
     if (!allBid) return
 
+    transitioningRef.current = true
     const biddingOrder = getBiddingOrder(playerOrder, round.dealer)
     transitionToPlaying(table.id, table.currentRound, biddingOrder[0])
+      .finally(() => { transitioningRef.current = false })
   }, [JSON.stringify(round.bids), round.phase])
 
   // ── Bot auto-play ────────────────────────────────────────────────────────
@@ -83,11 +89,22 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
     if (!isBotUid(round.currentPlayer)) return
     if (round.phase === 'scoring') return
 
-    const botHand = allHands[round.currentPlayer]
-    if (round.phase === 'playing' && !botHand) return
-    if (botActing.current) return
+    // Guard: don't re-bid if bot already bid (prevents loop when last bidder
+    // hasn't had currentPlayer updated yet by transitionToPlaying)
+    if (round.phase === 'bidding' && (round.bids[round.currentPlayer] ?? -1) >= 0) return
 
-    botActing.current = true
+    // Need the bot's hand to play a card
+    const botHand = allHands[round.currentPlayer]
+    if (round.phase === 'playing' && (!botHand || botHand.cards.length === 0)) return
+
+    // Deduplicate: same round + player + phase + trick = same action, skip
+    const actionKey = `${table.currentRound}|${round.currentPlayer}|${round.phase}|${round.currentTrick.length}`
+    if (lastBotActionKey.current === actionKey) return
+    lastBotActionKey.current = actionKey
+
+    // 1-card rounds are simple — use a shorter delay
+    const delay = round.cardsPerPlayer === 1 ? 350 : BOT_DELAY_MS
+
     const timer = setTimeout(async () => {
       try {
         if (round.phase === 'bidding') {
@@ -95,17 +112,24 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
           const biddingOrder = getBiddingOrder(playerOrder, round.dealer)
           const next = getNextBidder(round.bids, biddingOrder, round.currentPlayer)
           await submitBid(table.id, table.currentRound, round.currentPlayer, bid, next)
-        } else if (round.phase === 'playing' && botHand) {
+        } else if (round.phase === 'playing' && botHand && botHand.cards.length > 0) {
           const cardId = getBotCard(botHand, round)
           await playCard(table.id, table.currentRound, round.currentPlayer, cardId, botHand)
         }
-      } finally {
-        botActing.current = false
+      } catch (e) {
+        console.error('Bot action failed:', e)
+        lastBotActionKey.current = '' // allow retry on next render
       }
-    }, BOT_DELAY_MS)
+    }, delay)
 
-    return () => { clearTimeout(timer); botActing.current = false }
-  }, [round.currentPlayer, round.phase, round.currentTrick.length, allHands[round.currentPlayer]?.cards.length])
+    return () => clearTimeout(timer)
+  }, [
+    round.currentPlayer,
+    round.phase,
+    round.currentTrick.length,
+    round.bids[round.currentPlayer],        // re-check when bid state changes
+    allHands[round.currentPlayer]?.cards.length,
+  ])
 
   // ── Opponent layout ──────────────────────────────────────────────────────
   const myIdx = playerOrder.indexOf(user?.uid ?? '')
