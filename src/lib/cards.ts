@@ -1,4 +1,4 @@
-import type { Card, Rank, Suit, TrickCard } from '../types'
+import type { Card, Rank, Suit, TrickCard, GameMode } from '../types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -62,15 +62,38 @@ export function seededShuffle<T>(arr: T[], seed: string): T[] {
 // ─── Round Structure ──────────────────────────────────────────────────────────
 
 /**
- * Returns the number of cards per player for each round (0-indexed).
- * Sequence: 8,7,6,5,4,3,2,1,2,3,4,5,6,7,8 (15 rounds total)
+ * Returns the cards-per-player sequence for the whole game.
+ *
+ * Mountain (Munte) — starts/ends with 8, valley of 1s in centre:
+ *   [8×N, 7, 6, 5, 4, 3, 2, 1×N, 2, 3, 4, 5, 6, 7, 8×N]
+ *   Example N=4: [8,8,8,8, 7,6,5,4,3,2, 1,1,1,1, 2,3,4,5,6,7, 8,8,8,8]
+ *
+ * Valley (Vale) — starts/ends with 1, peak of 8s in centre:
+ *   [1×N, 2, 3, 4, 5, 6, 7, 8×N, 7, 6, 5, 4, 3, 2, 1×N]
+ *   Example N=4: [1,1,1,1, 2,3,4,5,6,7, 8,8,8,8, 7,6,5,4,3,2, 1,1,1,1]
+ *
+ * Total rounds = 3N + 12 for both modes.
  */
-export function getRoundCards(roundIndex: number): number {
-  if (roundIndex < 8) return 8 - roundIndex // 8→1 descending
-  return roundIndex - 6 // 2→8 ascending
+export function getRoundSequence(mode: GameMode, playerCount: number): number[] {
+  const N = playerCount
+  const down = [7, 6, 5, 4, 3, 2]        // 7→2 (6 rounds)
+  const up = [2, 3, 4, 5, 6, 7]           // 2→7 (6 rounds)
+  const manyEight = Array<number>(N).fill(8)
+  const manyOne = Array<number>(N).fill(1)
+
+  if (mode === 'mountain') {
+    // 8,8…(N), 7,6,5,4,3,2, 1,1…(N), 2,3,4,5,6,7, 8,8…(N)
+    return [...manyEight, ...down, ...manyOne, ...up, ...manyEight]
+  } else {
+    // 1,1…(N), 2,3,4,5,6,7, 8,8…(N), 7,6,5,4,3,2, 1,1…(N)
+    return [...manyOne, ...up, ...manyEight, ...down, ...manyOne]
+  }
 }
 
-export const TOTAL_ROUNDS = 15
+/** Total rounds = 3N + 12 (same for both modes) */
+export function getTotalRounds(playerCount: number): number {
+  return 3 * playerCount + 12
+}
 
 // ─── Dealing ─────────────────────────────────────────────────────────────────
 

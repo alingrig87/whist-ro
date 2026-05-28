@@ -31,6 +31,17 @@ export interface UserProfile {
 
 export type TableStatus = 'waiting' | 'playing' | 'finished'
 
+/**
+ * Mountain (Munte): starts and ends with 8 cards, valley of 1s in the middle.
+ * Sequence: [8×N, 7, 6, 5, 4, 3, 2, 1×N, 2, 3, 4, 5, 6, 7, 8×N]
+ *
+ * Valley (Vale): starts and ends with 1 card, peak of 8s in the middle.
+ * Sequence: [1×N, 2, 3, 4, 5, 6, 7, 8×N, 7, 6, 5, 4, 3, 2, 1×N]
+ *
+ * Both modes have 3N+12 total rounds.
+ */
+export type GameMode = 'mountain' | 'valley'
+
 export interface TableMeta {
   id: string
   name: string
@@ -42,6 +53,11 @@ export interface TableMeta {
   scores: Record<string, number>
   currentRound: number
   totalRounds: number
+  gameMode: GameMode
+  /** Computed at game start: array of cardsPerPlayer for each round index */
+  roundSequence: number[]
+  /** Tracks consecutive exact-bid hits per player (non-1-card rounds only) */
+  consecutiveHits: Record<string, number>
   groupId: string | null
 }
 
@@ -51,6 +67,7 @@ export interface TablePlayer {
   photoURL: string
   ready: boolean
   joinedAt: Date
+  isBot?: boolean
 }
 
 // ─── Round Types ──────────────────────────────────────────────────────────────

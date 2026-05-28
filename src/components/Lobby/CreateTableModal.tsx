@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { createTable } from '../../lib/tables'
-import type { Group } from '../../types'
+import type { Group, GameMode } from '../../types'
 
 interface Props {
   myGroups: Group[]
@@ -9,13 +9,31 @@ interface Props {
   onCreated: (tableId: string) => void
 }
 
+const GAME_MODE_OPTIONS: { value: GameMode; label: string; desc: string; example: string }[] = [
+  {
+    value: 'mountain',
+    label: '⛰️ Munte',
+    desc: 'Începi cu 8 cărți, cobori la 1, urci înapoi la 8',
+    example: '8,8…→7→6→5→4→3→2→1,1…→2→3→4→5→6→7→8,8…',
+  },
+  {
+    value: 'valley',
+    label: '🏔️ Vale',
+    desc: 'Începi cu 1 carte, urci la 8, cobori înapoi la 1',
+    example: '1,1…→2→3→4→5→6→7→8,8…→7→6→5→4→3→2→1,1…',
+  },
+]
+
 export default function CreateTableModal({ myGroups, onClose, onCreated }: Props) {
   const { user, profile } = useAuth()
   const [name, setName] = useState(`Masa lui ${profile?.displayName ?? 'jucător'}`)
   const [maxPlayers, setMaxPlayers] = useState(4)
+  const [gameMode, setGameMode] = useState<GameMode>('mountain')
   const [groupId, setGroupId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const totalRounds = 3 * maxPlayers + 12
 
   const handleCreate = async () => {
     if (!user || !profile) return
@@ -31,6 +49,7 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
         name.trim(),
         maxPlayers,
         { uid: user.uid, displayName: profile.displayName, photoURL: profile.photoURL },
+        gameMode,
         groupId || undefined,
       )
       onCreated(tableId)
@@ -50,6 +69,7 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
         </div>
 
         <div className="modal-body">
+          {/* Table name */}
           <div className="form-group">
             <label htmlFor="table-name">Numele mesei</label>
             <input
@@ -62,6 +82,7 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
             />
           </div>
 
+          {/* Max players */}
           <div className="form-group">
             <label>Număr maxim de jucători</label>
             <div className="player-count-selector">
@@ -78,6 +99,29 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
             <p className="form-hint">Minim 3 jucători pentru a porni jocul</p>
           </div>
 
+          {/* Game mode */}
+          <div className="form-group">
+            <label>Modul de joc</label>
+            <div className="game-mode-selector">
+              {GAME_MODE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  className={`game-mode-btn ${gameMode === opt.value ? 'game-mode-btn--active' : ''}`}
+                  onClick={() => setGameMode(opt.value)}
+                >
+                  <span className="game-mode-label">{opt.label}</span>
+                  <span className="game-mode-desc">{opt.desc}</span>
+                  <span className="game-mode-example">{opt.example}</span>
+                </button>
+              ))}
+            </div>
+            <p className="form-hint">
+              🃏 {totalRounds} runde totale pentru {maxPlayers} jucători
+              {' '} • Nivelele de 8 și 1 se joacă de {maxPlayers}× (câte unul per dealer)
+            </p>
+          </div>
+
+          {/* Group */}
           {myGroups.length > 0 && (
             <div className="form-group">
               <label htmlFor="group-select">Grup (opțional)</label>
@@ -89,34 +133,31 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
               >
                 <option value="">Fără grup (joc public)</option>
                 {myGroups.map(g => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
+                  <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
               </select>
-              <p className="form-hint">
-                Jocurile de grup apar în clasamentul grupului
-              </p>
+              <p className="form-hint">Jocurile de grup apar în clasamentul grupului</p>
             </div>
           )}
 
           {error && <div className="form-error">{error}</div>}
 
+          {/* Rules summary */}
           <div className="game-info-box">
             <h4>📋 Regulile jocului</h4>
             <ul>
-              <li>15 runde: 8→7→6→5→4→3→2→1→2→3→4→5→6→7→8 cărți</li>
-              <li>Nimerești licitația: +5 + numărul de levate</li>
-              <li>Ratezi: -(diferența absolută)</li>
-              <li>Ultimul jucător nu poate face suma egală cu totalul</li>
+              <li>Nivelele de 8 și 1 se joacă de <strong>{maxPlayers}×</strong> (un dealer diferit fiecare)</li>
+              <li>Nivelele 2–7 se joacă câte o singură dată</li>
+              <li>Nimerești licitația: <strong>+5 + levate</strong></li>
+              <li>Ratezi: <strong>−(diferența absolută)</strong></li>
+              <li>Ultimul jucător nu poate face suma = total levate</li>
+              <li>🏆 <strong>Bonus +10</strong> pentru 5 nimereli consecutive (non-1)</li>
             </ul>
           </div>
         </div>
 
         <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>
-            Anulează
-          </button>
+          <button className="btn-secondary" onClick={onClose}>Anulează</button>
           <button
             className="btn-primary"
             onClick={handleCreate}

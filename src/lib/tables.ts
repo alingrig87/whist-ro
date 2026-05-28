@@ -17,16 +17,17 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { TableMeta, TablePlayer, RoundState, PlayerHand } from '../types'
+import type { TableMeta, TablePlayer, RoundState, PlayerHand, GameMode } from '../types'
 import {
   generateDeck,
   seededShuffle,
   dealCards,
   getTrumpCard,
-  getRoundCards,
+  getRoundSequence,
+  getTotalRounds,
   getBiddingOrder,
-  TOTAL_ROUNDS,
 } from './cards'
+import { isBotUid, BOT_NAMES } from './bots'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export async function createTable(
   name: string,
   maxPlayers: number,
   creator: { uid: string; displayName: string; photoURL: string },
+  gameMode: GameMode = 'mountain',
   groupId?: string,
 ): Promise<string> {
   const ref = doc(collection(db, 'tables'))
@@ -59,7 +61,10 @@ export async function createTable(
     maxPlayers,
     scores: {},
     currentRound: 0,
-    totalRounds: TOTAL_ROUNDS,
+    totalRounds: getTotalRounds(maxPlayers),
+    gameMode,
+    roundSequence: [],       // populated when game starts
+    consecutiveHits: {},     // populated when game starts
     groupId: groupId ?? null,
   })
 
@@ -68,6 +73,7 @@ export async function createTable(
     displayName: creator.displayName,
     photoURL: creator.photoURL,
     ready: false,
+    isBot: false,
     joinedAt: serverTimestamp(),
   })
 
@@ -84,7 +90,6 @@ export async function joinTable(
   const table = tableSnap.data()
   if (table.status !== 'waiting') throw new Error('Jocul a început deja')
 
-  // Count current players
   const playersSnap = await getDocs(collection(db, 'tables', tableId, 'players'))
   if (playersSnap.size >= table.maxPlayers) throw new Error('Masa este plină')
 
@@ -92,6 +97,7 @@ export async function joinTable(
     displayName: player.displayName,
     photoURL: player.photoURL,
     ready: false,
+    isBot: false,
     joinedAt: serverTimestamp(),
   })
 }
@@ -112,23 +118,50 @@ export async function deleteTable(tableId: string): Promise<void> {
   await updateDoc(doc(db, 'tables', tableId), { status: 'finished' })
 }
 
+// ─── Bot Players ──────────────────────────────────────────────────────────────
+
+/**
+ * Adds a bot player to the waiting room.
+ * botNumber: 1..5 — determines uid ('bot-1'..'bot-5') and display name.
+ */
+export async function addBotPlayer(tableId: string, botNumber: number): Promise<void> {
+  const uid = `bot-${botNumber}`
+  await setDoc(doc(db, 'tables', tableId, 'players', uid), {
+    displayName: BOT_NAMES[uid] ?? `🤖 Bot ${botNumber}`,
+    photoURL: '',
+    ready: true,   // Bots are always ready
+    isBot: true,
+    joinedAt: serverTimestamp(),
+  })
+}
+
+export async function removeBotPlayer(tableId: string, botNumber: number): Promise<void> {
+  await deleteDoc(doc(db, 'tables', tableId, 'players', `bot-${botNumber}`))
+}
+
 // ─── Game Start ───────────────────────────────────────────────────────────────
 
 export async function startGame(
   tableId: string,
   players: TablePlayer[],
+  gameMode: GameMode,
 ): Promise<void> {
   const playerOrder = fisherYates(players.map(p => p.uid))
   const scores = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
+  const consecutiveHits = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
+  const roundSequence = getRoundSequence(gameMode, playerOrder.length)
 
   await updateDoc(doc(db, 'tables', tableId), {
     status: 'playing',
     playerOrder,
     scores,
+    consecutiveHits,
     currentRound: 0,
+    roundSequence,
+    totalRounds: roundSequence.length,
   })
 
-  await createRound(tableId, 0, playerOrder)
+  await createRound(tableId, 0, playerOrder, roundSequence)
 }
 
 // ─── Round Creation ───────────────────────────────────────────────────────────
@@ -137,8 +170,9 @@ export async function createRound(
   tableId: string,
   roundIndex: number,
   playerOrder: string[],
+  roundSequence: number[],
 ): Promise<void> {
-  const cardsPerPlayer = getRoundCards(roundIndex)
+  const cardsPerPlayer = roundSequence[roundIndex]
   const seed = `${tableId}-round-${roundIndex}`
   const deck = seededShuffle(generateDeck(), seed)
 
@@ -191,10 +225,6 @@ export async function submitBid(
 
   if (nextPlayer !== null) {
     update.currentPlayer = nextPlayer
-  } else {
-    // All bids are in — transition to playing phase
-    // The first player in bidding order leads the first trick
-    // (currentPlayer stays as-is; the onSnapshot handler transitions phase)
   }
 
   await updateDoc(doc(db, 'tables', tableId, 'rounds', String(roundIndex)), update)
@@ -257,6 +287,26 @@ export async function finalizeTrick(
 
 // ─── Real-Time Subscriptions ──────────────────────────────────────────────────
 
+function parseTableMeta(id: string, d: ReturnType<typeof doc> extends never ? never : Record<string, unknown>): TableMeta {
+  const data = d as Record<string, unknown>
+  return {
+    id,
+    name: data.name as string,
+    createdBy: data.createdBy as string,
+    createdAt: (data.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date(),
+    status: data.status as TableMeta['status'],
+    playerOrder: (data.playerOrder as string[]) ?? [],
+    maxPlayers: data.maxPlayers as number,
+    scores: (data.scores as Record<string, number>) ?? {},
+    currentRound: (data.currentRound as number) ?? 0,
+    totalRounds: (data.totalRounds as number) ?? 15,
+    gameMode: (data.gameMode as GameMode) ?? 'mountain',
+    roundSequence: (data.roundSequence as number[]) ?? [],
+    consecutiveHits: (data.consecutiveHits as Record<string, number>) ?? {},
+    groupId: (data.groupId as string | null) ?? null,
+  }
+}
+
 export function subscribeToTable(
   tableId: string,
   onData: (table: TableMeta) => void,
@@ -266,20 +316,7 @@ export function subscribeToTable(
     doc(db, 'tables', tableId),
     snap => {
       if (!snap.exists()) return
-      const d = snap.data()
-      onData({
-        id: snap.id,
-        name: d.name,
-        createdBy: d.createdBy,
-        createdAt: d.createdAt?.toDate() ?? new Date(),
-        status: d.status,
-        playerOrder: d.playerOrder ?? [],
-        maxPlayers: d.maxPlayers,
-        scores: d.scores ?? {},
-        currentRound: d.currentRound ?? 0,
-        totalRounds: d.totalRounds ?? TOTAL_ROUNDS,
-        groupId: d.groupId ?? null,
-      })
+      onData(parseTableMeta(snap.id, snap.data() as Record<string, unknown>))
     },
     onError,
   )
@@ -292,12 +329,14 @@ export function subscribeToPlayers(
   return onSnapshot(collection(db, 'tables', tableId, 'players'), snap => {
     const players: Record<string, TablePlayer> = {}
     snap.forEach(d => {
+      const data = d.data()
       players[d.id] = {
         uid: d.id,
-        displayName: d.data().displayName,
-        photoURL: d.data().photoURL,
-        ready: d.data().ready,
-        joinedAt: d.data().joinedAt?.toDate() ?? new Date(),
+        displayName: data.displayName as string,
+        photoURL: (data.photoURL as string) ?? '',
+        ready: data.ready as boolean,
+        joinedAt: (data.joinedAt as { toDate?: () => Date })?.toDate?.() ?? new Date(),
+        isBot: (data.isBot as boolean) ?? isBotUid(d.id),
       }
     })
     onData(players)
@@ -313,16 +352,16 @@ export function subscribeToRound(
     if (!snap.exists()) return
     const d = snap.data()
     onData({
-      roundNumber: d.roundNumber,
-      cardsPerPlayer: d.cardsPerPlayer,
-      trumpSuit: d.trumpSuit ?? null,
-      dealer: d.dealer,
-      phase: d.phase,
-      bids: d.bids ?? {},
-      tricksWon: d.tricksWon ?? {},
-      currentTrick: d.currentTrick ?? [],
-      trickLeader: d.trickLeader,
-      currentPlayer: d.currentPlayer,
+      roundNumber: d.roundNumber as number,
+      cardsPerPlayer: d.cardsPerPlayer as number,
+      trumpSuit: (d.trumpSuit as RoundState['trumpSuit']) ?? null,
+      dealer: d.dealer as string,
+      phase: d.phase as RoundState['phase'],
+      bids: (d.bids as Record<string, number>) ?? {},
+      tricksWon: (d.tricksWon as Record<string, number>) ?? {},
+      currentTrick: (d.currentTrick as RoundState['currentTrick']) ?? [],
+      trickLeader: d.trickLeader as string,
+      currentPlayer: d.currentPlayer as string,
     })
   })
 }
@@ -334,8 +373,30 @@ export function subscribeToHand(
 ): Unsubscribe {
   return onSnapshot(doc(db, 'tables', tableId, 'hands', uid), snap => {
     if (!snap.exists()) return
-    onData({ cards: snap.data().cards ?? [] })
+    onData({ cards: (snap.data().cards as PlayerHand['cards']) ?? [] })
   })
+}
+
+/**
+ * Subscribes to ALL player hands in a table.
+ * Only usable by the table creator (Firebase security rules enforce this).
+ * Used for bot control: the host needs to see bot hands to play on their behalf.
+ */
+export function subscribeToAllHands(
+  tableId: string,
+  playerOrder: string[],
+  onData: (hands: Record<string, PlayerHand>) => void,
+): Unsubscribe {
+  const hands: Record<string, PlayerHand> = {}
+
+  const unsubs = playerOrder.map(uid =>
+    subscribeToHand(tableId, uid, hand => {
+      hands[uid] = hand
+      onData({ ...hands })
+    }),
+  )
+
+  return () => unsubs.forEach(u => u())
 }
 
 // ─── Lobby Query ──────────────────────────────────────────────────────────────
@@ -351,22 +412,9 @@ export function subscribeToOpenTables(
   )
 
   return onSnapshot(q, snap => {
-    const tables: TableMeta[] = snap.docs.map(d => {
-      const data = d.data()
-      return {
-        id: d.id,
-        name: data.name,
-        createdBy: data.createdBy,
-        createdAt: data.createdAt?.toDate() ?? new Date(),
-        status: data.status,
-        playerOrder: data.playerOrder ?? [],
-        maxPlayers: data.maxPlayers,
-        scores: data.scores ?? {},
-        currentRound: data.currentRound ?? 0,
-        totalRounds: data.totalRounds ?? TOTAL_ROUNDS,
-        groupId: data.groupId ?? null,
-      }
-    })
+    const tables: TableMeta[] = snap.docs.map(d =>
+      parseTableMeta(d.id, d.data() as Record<string, unknown>),
+    )
     onData(tables)
   })
 }

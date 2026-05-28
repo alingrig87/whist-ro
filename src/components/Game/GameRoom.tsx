@@ -6,6 +6,7 @@ import {
   subscribeToPlayers,
   subscribeToRound,
   subscribeToHand,
+  subscribeToAllHands,
   joinTable,
 } from '../../lib/tables'
 import type { TableMeta, TablePlayer, RoundState, PlayerHand } from '../../types'
@@ -22,8 +23,12 @@ export default function GameRoom() {
   const [players, setPlayers] = useState<Record<string, TablePlayer>>({})
   const [round, setRound] = useState<RoundState | null>(null)
   const [hand, setHand] = useState<PlayerHand | null>(null)
+  /** All hands — populated only for the host, used for bot control */
+  const [allHands, setAllHands] = useState<Record<string, PlayerHand>>({})
   const [loadError, setLoadError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
+
+  const isHost = !!(user && table && user.uid === table.createdBy)
 
   // Subscribe to table
   useEffect(() => {
@@ -57,6 +62,16 @@ export default function GameRoom() {
     return unsub
   }, [tableId, user?.uid, table?.status])
 
+  // Subscribe to ALL hands when host (for bot control)
+  useEffect(() => {
+    if (!tableId || !table || table.status !== 'playing' || !isHost) return
+    if (table.playerOrder.length === 0) return
+
+    const unsub = subscribeToAllHands(tableId, table.playerOrder, setAllHands)
+    return unsub
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableId, isHost, table?.status, table?.playerOrder?.join(',')])
+
   // Auto-join if not already a player (joined via link)
   useEffect(() => {
     if (!table || !user || !profile) return
@@ -69,7 +84,7 @@ export default function GameRoom() {
       displayName: profile.displayName,
       photoURL: profile.photoURL,
     })
-      .catch(e => setLoadError(e.message))
+      .catch(e => setLoadError(e instanceof Error ? e.message : 'Eroare la join'))
       .finally(() => setJoining(false))
   }, [table?.status, user?.uid, Object.keys(players).length])
 
@@ -103,7 +118,6 @@ export default function GameRoom() {
     )
   }
 
-  // Route by status
   if (table.status === 'waiting') {
     return <WaitingRoom table={table} players={players} />
   }
@@ -122,5 +136,13 @@ export default function GameRoom() {
     )
   }
 
-  return <GameTable table={table} round={round} hand={hand} players={players} />
+  return (
+    <GameTable
+      table={table}
+      round={round}
+      hand={hand}
+      players={players}
+      allHands={allHands}
+    />
+  )
 }

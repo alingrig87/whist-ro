@@ -53,9 +53,13 @@ service cloud.firestore {
       allow write: if isTablePlayer(tableId);
     }
 
-    // PRIVATE: only the hand owner can read their cards
+    // PRIVATE: hand owner can read their own cards.
+    // The table CREATOR can also read all hands — needed to control bot players.
+    // Write is allowed to any table player (host deals cards on behalf of all).
     match /tables/{tableId}/hands/{uid} {
-      allow read:  if isOwner(uid);
+      allow read: if isOwner(uid) ||
+        (isAuth() &&
+          get(/databases/$(database)/documents/tables/$(tableId)).data.createdBy == request.auth.uid);
       allow write: if isTablePlayer(tableId);
     }
 
