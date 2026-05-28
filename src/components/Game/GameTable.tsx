@@ -2,13 +2,13 @@ import { useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { resolveTrick, getBiddingOrder, getNextBidder } from '../../lib/cards'
 import { finalizeTrick, submitBid, playCard, transitionToPlaying } from '../../lib/tables'
+import { applyRoundScores } from '../../lib/scoring'
 import { isBotUid, getBotBid, getBotCard, BOT_DELAY_MS } from '../../lib/bots'
 import type { TableMeta, RoundState, TablePlayer, PlayerHand } from '../../types'
 import BiddingPanel from './BiddingPanel'
 import PlayerHandComponent from './PlayerHand'
 import TrickArea from './TrickArea'
 import ScoreBoard from './ScoreBoard'
-import RoundSummary from './RoundSummary'
 import CardComponent from './CardComponent'
 
 interface Props {
@@ -131,6 +131,21 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
     allHands[round.currentPlayer]?.cards.length,
   ])
 
+  // ── Auto-advance after scoring (host only, 4s delay) ────────────────────
+  const scoringRef = useRef(false)
+  useEffect(() => {
+    if (round.phase !== 'scoring' || !isHost || scoringRef.current) return
+    scoringRef.current = true
+    const timer = setTimeout(async () => {
+      try {
+        await applyRoundScores(table, round, players)
+      } finally {
+        scoringRef.current = false
+      }
+    }, 4000)
+    return () => { clearTimeout(timer); scoringRef.current = false }
+  }, [round.phase, table.currentRound])
+
   // ── Opponent layout ──────────────────────────────────────────────────────
   const myIdx = playerOrder.indexOf(user?.uid ?? '')
   const opponents = playerOrder
@@ -203,27 +218,38 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
         )
       })}
 
-      {/* Center: trick + bidding overlay */}
+      {/* Center: drop zone + trick + bidding overlay */}
       <div className="game-center">
-        <TrickArea
-          trick={round.currentTrick}
-          players={players}
-          trumpSuit={round.trumpSuit}
-          playerOrder={playerOrder}
-          myUid={user?.uid ?? ''}
-        />
+        {/* Drop zone — cards dragged here are played */}
+        <div
+          id="trick-drop-zone"
+          className={`trick-drop-zone ${round.phase === 'playing' && round.currentPlayer === user?.uid ? 'trick-drop-zone--active' : ''}`}
+        >
+          <TrickArea
+            trick={round.currentTrick}
+            players={players}
+            trumpSuit={round.trumpSuit}
+            playerOrder={playerOrder}
+            myUid={user?.uid ?? ''}
+          />
+        </div>
 
         {round.phase === 'bidding' && (
           <BiddingPanel table={table} round={round} />
         )}
+
+        {/* Scoring banner — auto-advances after 4s */}
+        {round.phase === 'scoring' && (
+          <ScoringBanner round={round} players={players} playerOrder={playerOrder} />
+        )}
       </div>
 
-      {/* Scoreboard */}
+      {/* Scoreboard — big persistent leaderboard */}
       <div className="game-sidebar">
         <ScoreBoard table={table} round={round} players={players} />
       </div>
 
-      {/* My hand — always visible at bottom (greyed out during bidding) */}
+      {/* My hand — always visible at bottom */}
       <div className="game-bottom">
         <PlayerHandComponent
           table={table}
@@ -232,11 +258,41 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
           duringBidding={round.phase === 'bidding'}
         />
       </div>
+    </div>
+  )
+}
 
-      {/* Round summary */}
-      {round.phase === 'scoring' && (
-        <RoundSummary table={table} round={round} players={players} />
-      )}
+// Small banner shown during scoring phase; auto-advances after 4s (host only)
+function ScoringBanner({
+  round,
+  players,
+  playerOrder,
+}: {
+  round: RoundState
+  players: Record<string, TablePlayer>
+  playerOrder: string[]
+}) {
+  return (
+    <div className="scoring-banner">
+      <div className="scoring-banner-title">Runda {round.roundNumber} completă!</div>
+      <div className="scoring-banner-rows">
+        {playerOrder.map(uid => {
+          const bid  = round.bids[uid] ?? 0
+          const won  = round.tricksWon[uid] ?? 0
+          const hit  = bid === won
+          const delta = hit ? 5 + bid : -(Math.abs(bid - won))
+          return (
+            <div key={uid} className={`scoring-banner-row ${hit ? 'scoring-banner-row--hit' : 'scoring-banner-row--miss'}`}>
+              <span className="scoring-banner-name">{players[uid]?.displayName ?? uid}</span>
+              <span className="scoring-banner-bid">{won}/{bid}</span>
+              <span className={`scoring-banner-delta ${hit ? 'delta-pos' : 'delta-neg'}`}>
+                {delta > 0 ? `+${delta}` : delta}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="scoring-banner-hint">Se trece la runda următoare...</div>
     </div>
   )
 }
