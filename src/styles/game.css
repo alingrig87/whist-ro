@@ -116,6 +116,27 @@
 }
 .trump-card-badge strong { font-size: 0.9rem; letter-spacing: 0.02em; }
 
+/* ─── Trump card on table ───────────────────────────────────────────────── */
+
+.trump-card-on-table {
+  position: absolute;
+  /* Bottom-right corner of the oval */
+  bottom: calc(50% - min(25vh, 190px));
+  right:  calc(50% - min(36vw, 360px) + 10px);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  z-index: 7;
+  transform: rotate(15deg);
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+  transition: transform 0.2s;
+}
+.trump-card-on-table:hover { transform: rotate(0deg) scale(1.08); }
+
+.trump-card-label {
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: rgba(255,255,255,0.55);
+  background: rgba(0,0,0,0.5); padding: 2px 7px; border-radius: 9999px;
+}
+
 /* ─── Opponent Players (absolute arc at top) ────────────────────────────── */
 
 .opponent {

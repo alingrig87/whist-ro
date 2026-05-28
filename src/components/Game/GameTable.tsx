@@ -161,6 +161,14 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
       {/* Green felt oval */}
       <div className="table-oval" />
 
+      {/* Trump card — face-up on the table, bottom-right of oval */}
+      {round.trumpCard && (
+        <div className="trump-card-on-table">
+          <span className="trump-card-label">Atu</span>
+          <CardComponent card={round.trumpCard} />
+        </div>
+      )}
+
       {/* Round badge — prominent, top-center */}
       <div className="round-badge">
         <span className="round-badge-num">Runda {round.roundNumber} / {table.totalRounds}</span>
