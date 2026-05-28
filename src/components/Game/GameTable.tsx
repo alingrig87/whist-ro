@@ -114,7 +114,7 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
           await submitBid(table.id, table.currentRound, round.currentPlayer, bid, next)
         } else if (round.phase === 'playing' && botHand && botHand.cards.length > 0) {
           const cardId = getBotCard(botHand, round)
-          await playCard(table.id, table.currentRound, round.currentPlayer, cardId, botHand)
+          await playCard(table.id, table.currentRound, round.currentPlayer, cardId, botHand, playerOrder, round.currentTrick.length)
         }
       } catch (e) {
         console.error('Bot action failed:', e)

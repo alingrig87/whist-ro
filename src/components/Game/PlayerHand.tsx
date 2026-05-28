@@ -32,7 +32,7 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
 
   const handlePlayCard = async (card: Card) => {
     if (!user) return
-    await playCard(table.id, table.currentRound, user.uid, card.id, hand)
+    await playCard(table.id, table.currentRound, user.uid, card.id, hand, table.playerOrder, round.currentTrick.length)
     setSelectedCard(null)
   }
 

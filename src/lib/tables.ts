@@ -252,21 +252,29 @@ export async function playCard(
   uid: string,
   cardId: string,
   currentHand: { cards: { id: string }[] },
+  playerOrder: string[],
+  currentTrickLength: number,
 ): Promise<void> {
   const card = currentHand.cards.find(c => c.id === cardId)
   if (!card) throw new Error('Cartea nu se află în mână')
 
   const newCards = currentHand.cards.filter(c => c.id !== cardId)
+  const isLastInTrick = currentTrickLength + 1 === playerOrder.length
+
+  const roundUpdate: Record<string, unknown> = {
+    currentTrick: arrayUnion({ uid, card }),
+  }
+
+  // Advance currentPlayer unless this is the last card in the trick
+  // (finalizeTrick will set currentPlayer = winner in that case)
+  if (!isLastInTrick) {
+    const nextIdx = (playerOrder.indexOf(uid) + 1) % playerOrder.length
+    roundUpdate.currentPlayer = playerOrder[nextIdx]
+  }
 
   const batch = writeBatch(db)
-
-  batch.update(doc(db, 'tables', tableId, 'rounds', String(roundIndex)), {
-    currentTrick: arrayUnion({ uid, card }),
-  })
-
-  batch.set(doc(db, 'tables', tableId, 'hands', uid), {
-    cards: newCards,
-  })
+  batch.update(doc(db, 'tables', tableId, 'rounds', String(roundIndex)), roundUpdate)
+  batch.set(doc(db, 'tables', tableId, 'hands', uid), { cards: newCards })
 
   await batch.commit()
 }
