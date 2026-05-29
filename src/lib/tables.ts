@@ -44,6 +44,8 @@ function fisherYates<T>(arr: T[]): T[] {
 
 // ─── Table CRUD ───────────────────────────────────────────────────────────────
 
+export const MAX_ACTIVE_TABLES_PER_USER = 1
+
 export async function createTable(
   name: string,
   maxPlayers: number,
@@ -52,6 +54,19 @@ export async function createTable(
   password?: string,
   groupId?: string,
 ): Promise<string> {
+  // Check active table limit
+  const activeQ = query(
+    collection(db, 'tables'),
+    where('createdBy', '==', creator.uid),
+    where('status', 'in', ['waiting', 'playing']),
+  )
+  const activeSnap = await getDocs(activeQ)
+  if (activeSnap.size >= MAX_ACTIVE_TABLES_PER_USER) {
+    throw new Error(
+      'Ai deja o masă activă. Închide masa curentă înainte să creezi una nouă.',
+    )
+  }
+
   const ref = doc(collection(db, 'tables'))
   const tableId = ref.id
   const pwHash = password ? await hashPassword(password) : null

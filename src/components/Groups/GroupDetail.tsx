@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { subscribeToGroupMembers, leaveGroup, refreshInviteCode, deleteGroup } from '../../lib/groups'
-import { getRecentGames, winRate } from '../../lib/leaderboard'
+import {
+  subscribeToGroupMembers,
+  leaveGroup,
+  refreshInviteCode,
+  deleteGroup,
+  getGroupGames,
+} from '../../lib/groups'
+import { winRate } from '../../lib/leaderboard'
 import type { GroupMember, GameRecord, Group } from '../../types'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
@@ -14,7 +20,8 @@ export default function GroupDetail() {
 
   const [group, setGroup] = useState<Group | null>(null)
   const [members, setMembers] = useState<GroupMember[]>([])
-  const [recentGames, setRecentGames] = useState<GameRecord[]>([])
+  const [games, setGames] = useState<GameRecord[]>([])
+  const [loadingGames, setLoadingGames] = useState(false)
   const [codeCopied, setCodeCopied] = useState(false)
 
   useEffect(() => {
@@ -41,7 +48,10 @@ export default function GroupDetail() {
 
   useEffect(() => {
     if (!groupId) return
-    getRecentGames(groupId, 10).then(setRecentGames)
+    setLoadingGames(true)
+    getGroupGames(groupId)
+      .then(setGames)
+      .finally(() => setLoadingGames(false))
   }, [groupId])
 
   const isAdmin = group?.createdBy === user?.uid
@@ -83,6 +93,7 @@ export default function GroupDetail() {
       <header className="page-header">
         <button className="back-btn" onClick={() => navigate('/groups')}>← Grupuri</button>
         <h1>👥 {group.name}</h1>
+        {group.description && <p className="group-desc">{group.description}</p>}
       </header>
 
       <main className="page-main group-detail">
@@ -112,10 +123,7 @@ export default function GroupDetail() {
               <span>Scor total</span>
             </div>
             {members.map((m, i) => (
-              <div
-                key={m.uid}
-                className={`lb-row ${m.uid === user?.uid ? 'lb-row--me' : ''}`}
-              >
+              <div key={m.uid} className={`lb-row ${m.uid === user?.uid ? 'lb-row--me' : ''}`}>
                 <span className="lb-rank">{medals[i] || `#${i + 1}`}</span>
                 <span className="lb-player">
                   <img src={m.photoURL} alt="" className="lb-avatar" />
@@ -131,49 +139,58 @@ export default function GroupDetail() {
           </div>
         </section>
 
-        {/* Recent games */}
-        {recentGames.length > 0 && (
-          <section className="group-section">
-            <h2 className="section-title">🃏 Jocuri recente</h2>
-            <div className="recent-games">
-              {recentGames.map(game => {
-                const winner = game.players.find(p => p.uid === game.winner)
-                return (
-                  <div key={game.id} className="recent-game-row">
-                    <span className="game-date">
-                      {game.finishedAt.toLocaleDateString('ro-RO')}
-                    </span>
-                    <span className="game-winner">
-                      🏆 {winner?.displayName ?? '—'}
-                    </span>
-                    <div className="game-scores">
-                      {game.players
-                        .sort((a, b) => b.score - a.score)
-                        .map(p => (
-                          <span
-                            key={p.uid}
-                            className={`game-score-chip ${p.uid === user?.uid ? 'game-score-chip--me' : ''}`}
-                          >
-                            {p.displayName}: {p.score}
-                          </span>
-                        ))}
+        {/* Full game history */}
+        <section className="group-section">
+          <h2 className="section-title">📜 Istoric jocuri</h2>
+          {loadingGames && <div className="empty-text">Se încarcă...</div>}
+          {!loadingGames && games.length === 0 && (
+            <div className="empty-text">Niciun joc finalizat în acest grup.</div>
+          )}
+          {games.map((game, idx) => {
+            const winner = game.players.find(p => p.uid === game.winner)
+            const date = game.finishedAt.toLocaleDateString('ro-RO', {
+              day: '2-digit', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })
+            const sorted = [...game.players].sort((a, b) => b.score - a.score)
+
+            return (
+              <div key={game.id} className="group-game-card">
+                {/* Header */}
+                <div className="ggc-header">
+                  <span className="ggc-num">Joc #{games.length - idx}</span>
+                  <span className="ggc-date">{date}</span>
+                  <span className="ggc-rounds">{game.totalRounds} runde</span>
+                  <span className="ggc-winner">🏆 {winner?.displayName ?? '—'}</span>
+                </div>
+
+                {/* Scores table */}
+                <div className="ggc-scores">
+                  {sorted.map((p, rank) => (
+                    <div
+                      key={p.uid}
+                      className={`ggc-row ${p.uid === user?.uid ? 'ggc-row--me' : ''} ${rank === 0 ? 'ggc-row--winner' : ''}`}
+                    >
+                      <span className="ggc-rank">{medals[rank] ?? `${rank + 1}.`}</span>
+                      {p.photoURL
+                        ? <img src={p.photoURL} alt="" className="ggc-avatar" />
+                        : <div className="ggc-avatar ggc-avatar--placeholder">👤</div>
+                      }
+                      <span className="ggc-name">{p.displayName}</span>
+                      <span className="ggc-score">{p.score} pct</span>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </section>
 
         {/* Actions */}
         <div className="group-actions">
-          <button className="btn-secondary" onClick={handleLeave}>
-            Ieși din grup
-          </button>
+          <button className="btn-secondary" onClick={handleLeave}>Ieși din grup</button>
           {isAdmin && (
-            <button className="btn-danger" onClick={handleDelete}>
-              Șterge grupul
-            </button>
+            <button className="btn-danger" onClick={handleDelete}>Șterge grupul</button>
           )}
         </div>
       </main>

@@ -17,7 +17,9 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Group, GroupMember, UserProfile } from '../types'
+import type { Group, GroupMember, UserProfile, GameRecord } from '../types'
+
+export const MAX_GROUPS_PER_USER = 3
 
 // ─── Invite Code ──────────────────────────────────────────────────────────────
 
@@ -37,6 +39,21 @@ async function inviteCodeExists(code: string): Promise<boolean> {
   return !snap.empty
 }
 
+// ─── Limit check ─────────────────────────────────────────────────────────────
+
+async function checkGroupLimit(uid: string): Promise<void> {
+  const q = query(
+    collection(db, 'groups'),
+    where('memberUids', 'array-contains', uid),
+  )
+  const snap = await getDocs(q)
+  if (snap.size >= MAX_GROUPS_PER_USER) {
+    throw new Error(
+      `Ești deja în ${MAX_GROUPS_PER_USER} grupuri (limita maximă). Ieși dintr-un grup înainte să creezi/intri în altul.`,
+    )
+  }
+}
+
 // ─── Create Group ─────────────────────────────────────────────────────────────
 
 export async function createGroup(
@@ -44,6 +61,7 @@ export async function createGroup(
   description: string,
   creator: UserProfile,
 ): Promise<string> {
+  await checkGroupLimit(creator.uid)
   let inviteCode = generateInviteCode()
   while (await inviteCodeExists(inviteCode)) {
     inviteCode = generateInviteCode()
@@ -83,6 +101,7 @@ export async function joinGroupByCode(
   code: string,
   user: UserProfile,
 ): Promise<string> {
+  await checkGroupLimit(user.uid)
   const q = query(
     collection(db, 'groups'),
     where('inviteCode', '==', code.toUpperCase()),
@@ -165,6 +184,30 @@ export function subscribeToMyGroups(
       memberUids: d.data().memberUids ?? [],
     }))
     onData(groups)
+  })
+}
+
+// ─── Group Game History ───────────────────────────────────────────────────────
+
+export async function getGroupGames(groupId: string): Promise<GameRecord[]> {
+  const q = query(
+    collection(db, 'games'),
+    where('groupId', '==', groupId),
+    orderBy('finishedAt', 'desc'),
+    limit(50),
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map(d => {
+    const data = d.data()
+    return {
+      id: d.id,
+      tableId: data.tableId,
+      groupId: data.groupId,
+      players: data.players ?? [],
+      winner: data.winner,
+      finishedAt: data.finishedAt?.toDate() ?? new Date(),
+      totalRounds: data.totalRounds ?? 0,
+    } as GameRecord
   })
 }
 

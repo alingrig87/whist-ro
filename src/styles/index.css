@@ -744,6 +744,44 @@ button { cursor: pointer; font-family: inherit; font-size: 0.95rem; border: none
 
 .profile-actions { margin-top: 1.5rem; display: flex; gap: 0.75rem; }
 
+/* ─── Group game history cards ──────────────────────────────────────────── */
+
+.group-game-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 10px;
+}
+.ggc-header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--color-surface-2); padding: 10px 14px;
+  font-size: 0.8rem;
+}
+.ggc-num   { font-weight: 700; color: var(--color-accent); }
+.ggc-date  { color: var(--color-text-muted); flex: 1; }
+.ggc-rounds { color: var(--color-text-dim); }
+.ggc-winner { font-weight: 600; color: var(--color-accent); }
+
+.ggc-scores { display: flex; flex-direction: column; }
+.ggc-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--color-border); font-size: 0.85rem;
+}
+.ggc-row:last-child { border-bottom: none; }
+.ggc-row--me     { background: rgba(76,175,80,0.07); }
+.ggc-row--winner { background: rgba(255,213,79,0.06); }
+
+.ggc-rank { font-size: 1rem; width: 24px; text-align: center; }
+.ggc-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.ggc-avatar--placeholder {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 0.8rem;
+}
+.ggc-name  { flex: 1; font-weight: 500; }
+.ggc-score { font-weight: 700; color: var(--color-accent); }
+
+.group-desc { color: var(--color-text-muted); font-size: 0.88rem; margin-top: 4px; }
+
 /* ─── Password input ────────────────────────────────────────────────────── */
 
 .pw-input-row { display: flex; gap: 6px; }
