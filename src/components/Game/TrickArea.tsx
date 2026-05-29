@@ -36,7 +36,7 @@ export default function TrickArea({ trick, players, trumpSuit, playerOrder, myUi
               key={uid}
               className={`trick-card-slot trick-card-slot--pos${relPos}`}
             >
-              <CardComponent card={card} small />
+              <CardComponent card={card} />
               <span className="trick-card-label">
                 {uid === myUid ? 'Tu' : player?.displayName ?? '—'}
               </span>

@@ -228,8 +228,9 @@
 .opponent-cards {
   display: flex; align-items: center;
 }
-.opponent-cards .card--back { margin-left: -16px; }
+.opponent-cards .card--back { margin-left: -12px; }
 .opponent-cards .card--back:first-child { margin-left: 0; }
+.opponent-cards .card--small { width: 32px; height: 46px; }
 
 /* ─── Center Trick Area ─────────────────────────────────────────────────── */
 
