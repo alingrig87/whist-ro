@@ -14,6 +14,7 @@ import PlayerHandComponent from './PlayerHand'
 import TrickArea from './TrickArea'
 import ScoreBoard from './ScoreBoard'
 import CardComponent from './CardComponent'
+import RoundHistory from './RoundHistory'
 
 interface Props {
   table: TableMeta
@@ -68,8 +69,13 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
     const newTricksWon = { ...round.tricksWon, [winner]: (round.tricksWon[winner] ?? 0) + 1 }
     const totalTricks = Object.values(newTricksWon).reduce((a, b) => a + b, 0)
 
-    finalizeTrick(table.id, table.currentRound, winner, newTricksWon, totalTricks === round.cardsPerPlayer)
-      .finally(() => { resolvingTrick.current = false })
+    // Pause 1.6s so players can see the completed trick before it clears
+    const trickTimer = setTimeout(() => {
+      finalizeTrick(table.id, table.currentRound, winner, newTricksWon, totalTricks === round.cardsPerPlayer)
+        .finally(() => { resolvingTrick.current = false })
+    }, 1600)
+
+    return () => { clearTimeout(trickTimer) }
   }, [round.currentTrick.length, round.phase, round.trickLeader])
 
   // ── Bidding → playing transition ────────────────────────────────────────
@@ -295,6 +301,14 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
           <ScoringBanner round={round} players={players} playerOrder={playerOrder} />
         )}
       </div>
+
+      {/* History button — bottom-left of sidebar */}
+      <RoundHistory
+        tableId={table.id}
+        playerOrder={playerOrder}
+        players={players}
+        myUid={user?.uid ?? ''}
+      />
 
       {/* Scoreboard — big persistent leaderboard */}
       <div className="game-sidebar">

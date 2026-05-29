@@ -17,7 +17,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { TableMeta, TablePlayer, RoundState, PlayerHand, GameMode } from '../types'
+import type { TableMeta, TablePlayer, RoundState, PlayerHand, GameMode, RoundResult } from '../types'
 import {
   generateDeck,
   seededShuffle,
@@ -411,6 +411,22 @@ export function subscribeToAllHands(
   )
 
   return () => unsubs.forEach(u => u())
+}
+
+// ─── Round History ────────────────────────────────────────────────────────────
+
+export async function saveRoundResult(tableId: string, result: RoundResult): Promise<void> {
+  await setDoc(
+    doc(db, 'tables', tableId, 'results', String(result.roundIndex)),
+    result,
+  )
+}
+
+export async function getRoundResults(tableId: string): Promise<RoundResult[]> {
+  const snap = await getDocs(collection(db, 'tables', tableId, 'results'))
+  const results: RoundResult[] = []
+  snap.forEach(d => results.push(d.data() as RoundResult))
+  return results.sort((a, b) => a.roundIndex - b.roundIndex)
 }
 
 // ─── Lobby Query ──────────────────────────────────────────────────────────────

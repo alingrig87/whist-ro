@@ -139,6 +139,19 @@ export interface GroupMember {
   totalScore: number
 }
 
+// ─── Round History ────────────────────────────────────────────────────────────
+
+export interface RoundResult {
+  roundIndex: number
+  roundNumber: number
+  cardsPerPlayer: number
+  trumpSuit: Suit | null
+  bids: Record<string, number>
+  tricksWon: Record<string, number>
+  deltas: Record<string, number>
+  scoresAfter: Record<string, number>
+}
+
 // ─── UI Helper Types ──────────────────────────────────────────────────────────
 
 export interface Toast {

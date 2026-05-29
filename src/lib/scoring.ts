@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type { RoundState, TableMeta, TablePlayer, PlayerResult } from '../types'
-import { createRound } from './tables'
+import { createRound, saveRoundResult } from './tables'
 import { isBotUid } from './bots'
 
 // ─── Score Calculation ────────────────────────────────────────────────────────
@@ -157,6 +157,19 @@ export async function applyRoundScores(
   }
 
   const isLastRound = currentRound >= roundSequence.length - 1
+
+  // Save this round's result for history
+  saveRoundResult(tableId, {
+    roundIndex: currentRound,
+    roundNumber: round.roundNumber,
+    cardsPerPlayer: round.cardsPerPlayer,
+    trumpSuit: round.trumpSuit,
+    bids: round.bids,
+    tricksWon: round.tricksWon,
+    deltas,
+    scoresAfter: newScores,
+  }).catch(() => {}) // non-blocking, non-critical
+
   const batch = writeBatch(db)
 
   if (isLastRound) {
