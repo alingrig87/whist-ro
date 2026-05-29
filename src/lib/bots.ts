@@ -15,9 +15,9 @@ import type { RoundState, PlayerHand, Suit, Card } from '../types'
 export const BOT_UIDS = ['bot-1', 'bot-2', 'bot-3', 'bot-4', 'bot-5'] as const
 
 export const BOT_CONFIGS: Record<string, { name: string; photoURL: string }> = {
-  'bot-1': { name: 'Pimp',    photoURL: '' },
-  'bot-2': { name: 'Madalin', photoURL: '' },
-  'bot-3': { name: 'Tochi',   photoURL: '' },
+  'bot-1': { name: 'Pimp',    photoURL: '/pimp.png' },
+  'bot-2': { name: 'Madalin', photoURL: '/madalin.png' },
+  'bot-3': { name: 'Tochi',   photoURL: '/tochy.png' },
   'bot-4': { name: '🤖 Bot 4', photoURL: '' },
   'bot-5': { name: '🤖 Bot 5', photoURL: '' },
 }
