@@ -29,6 +29,7 @@ import {
 } from './cards'
 import { isBotUid, BOT_CONFIGS } from './bots'
 import { deductGameCredits } from './users'
+import { hashPassword } from './crypto'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,11 +48,13 @@ export async function createTable(
   name: string,
   maxPlayers: number,
   creator: { uid: string; displayName: string; photoURL: string },
-  gameMode: GameMode = 'mountain',
+  gameMode: GameMode = 'valley',
+  password?: string,
   groupId?: string,
 ): Promise<string> {
   const ref = doc(collection(db, 'tables'))
   const tableId = ref.id
+  const pwHash = password ? await hashPassword(password) : null
 
   await setDoc(ref, {
     name,
@@ -64,8 +67,10 @@ export async function createTable(
     currentRound: 0,
     totalRounds: getTotalRounds(maxPlayers),
     gameMode,
-    roundSequence: [],       // populated when game starts
-    consecutiveHits: {},     // populated when game starts
+    roundSequence: [],
+    consecutiveHits: {},
+    consecutiveMisses: {},
+    passwordHash: pwHash,
     groupId: groupId ?? null,
   })
 
@@ -84,12 +89,20 @@ export async function createTable(
 export async function joinTable(
   tableId: string,
   player: { uid: string; displayName: string; photoURL: string },
+  password?: string,
 ): Promise<void> {
   const tableSnap = await getDoc(doc(db, 'tables', tableId))
   if (!tableSnap.exists()) throw new Error('Masa nu există')
 
   const table = tableSnap.data()
   if (table.status !== 'waiting') throw new Error('Jocul a început deja')
+
+  // Password check
+  if (table.passwordHash) {
+    if (!password) throw new Error('Această masă are parolă')
+    const entered = await hashPassword(password)
+    if (entered !== table.passwordHash) throw new Error('Parolă incorectă')
+  }
 
   const playersSnap = await getDocs(collection(db, 'tables', tableId, 'players'))
   if (playersSnap.size >= table.maxPlayers) throw new Error('Masa este plină')
@@ -320,6 +333,7 @@ function parseTableMeta(id: string, d: ReturnType<typeof doc> extends never ? ne
     roundSequence: (data.roundSequence as number[]) ?? [],
     consecutiveHits: (data.consecutiveHits as Record<string, number>) ?? {},
     consecutiveMisses: (data.consecutiveMisses as Record<string, number>) ?? {},
+    passwordHash: (data.passwordHash as string | null) ?? null,
     groupId: (data.groupId as string | null) ?? null,
   }
 }

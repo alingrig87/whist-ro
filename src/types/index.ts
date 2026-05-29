@@ -65,6 +65,7 @@ export interface TableMeta {
   /** Tracks consecutive bid misses per player (non-1-card rounds only) */
   consecutiveMisses: Record<string, number>
   groupId: string | null
+  passwordHash: string | null   // SHA-256 of password; null = public table
 }
 
 export interface TablePlayer {

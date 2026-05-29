@@ -25,7 +25,10 @@ export default function TableCard({ table, myUid, joining, onJoin, onOpen }: Pro
   return (
     <div className="table-card">
       <div className="table-card-header">
-        <h3 className="table-name">{table.name}</h3>
+        <h3 className="table-name">
+          {table.passwordHash && <span className="table-lock" title="Masă cu parolă">🔒 </span>}
+          {table.name}
+        </h3>
         <span className="table-count">
           {playerList.length}/{table.maxPlayers}
         </span>

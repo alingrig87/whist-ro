@@ -16,6 +16,9 @@ export default function LobbyPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [joiningId, setJoiningId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pwPrompt, setPwPrompt] = useState<{ tableId: string; tableName: string } | null>(null)
+  const [pwInput, setPwInput] = useState('')
+  const [pwError, setPwError] = useState<string | null>(null)
 
   useEffect(() => {
     const unsub = subscribeToOpenTables(setTables)
@@ -28,21 +31,50 @@ export default function LobbyPage() {
     return unsub
   }, [user])
 
-  const handleJoin = async (tableId: string) => {
+  const doJoin = async (tableId: string, password?: string) => {
     if (!user || !profile) return
     setJoiningId(tableId)
-    setError(null)
     try {
       await joinTable(tableId, {
         uid: user.uid,
         displayName: profile.displayName,
         photoURL: profile.photoURL,
-      })
+      }, password)
       navigate(`/table/${tableId}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Eroare la alăturare')
+      throw e
     } finally {
       setJoiningId(null)
+    }
+  }
+
+  const handleJoin = async (table: TableMeta) => {
+    if (!user || !profile) return
+    setError(null)
+
+    if (table.passwordHash) {
+      // Show password prompt
+      setPwPrompt({ tableId: table.id, tableName: table.name })
+      setPwInput('')
+      setPwError(null)
+      return
+    }
+
+    try {
+      await doJoin(table.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Eroare la alăturare')
+    }
+  }
+
+  const handlePwJoin = async () => {
+    if (!pwPrompt) return
+    setPwError(null)
+    try {
+      await doJoin(pwPrompt.tableId, pwInput)
+      setPwPrompt(null)
+    } catch (e) {
+      setPwError(e instanceof Error ? e.message : 'Eroare')
     }
   }
 
@@ -99,7 +131,7 @@ export default function LobbyPage() {
                 table={table}
                 myUid={user?.uid ?? ''}
                 joining={joiningId === table.id}
-                onJoin={() => handleJoin(table.id)}
+                onJoin={() => handleJoin(table)}
                 onOpen={() => navigate(`/table/${table.id}`)}
               />
             ))}
@@ -132,6 +164,43 @@ export default function LobbyPage() {
           onClose={() => setShowCreate(false)}
           onCreated={handleCreated}
         />
+      )}
+
+      {/* Password prompt modal */}
+      {pwPrompt && (
+        <div className="modal-overlay" onClick={() => setPwPrompt(null)}>
+          <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🔒 {pwPrompt.tableName}</h2>
+              <button className="modal-close" onClick={() => setPwPrompt(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Parola mesei</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="Introdu parola..."
+                  value={pwInput}
+                  onChange={e => setPwInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handlePwJoin()}
+                  autoFocus
+                />
+              </div>
+              {pwError && <div className="form-error">{pwError}</div>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setPwPrompt(null)}>Anulează</button>
+              <button
+                className="btn-primary"
+                onClick={handlePwJoin}
+                disabled={!pwInput || joiningId === pwPrompt.tableId}
+              >
+                {joiningId === pwPrompt.tableId ? 'Se verifică...' : 'Intră la masă'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

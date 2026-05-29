@@ -29,6 +29,8 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
   const [name, setName] = useState(`Masa lui ${profile?.displayName ?? 'jucător'}`)
   const [maxPlayers, setMaxPlayers] = useState(4)
   const [gameMode, setGameMode] = useState<GameMode>('valley')
+  const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [groupId, setGroupId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +52,7 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
         maxPlayers,
         { uid: user.uid, displayName: profile.displayName, photoURL: profile.photoURL },
         gameMode,
+        password || undefined,
         groupId || undefined,
       )
       onCreated(tableId)
@@ -118,6 +121,30 @@ export default function CreateTableModal({ myGroups, onClose, onCreated }: Props
             <p className="form-hint">
               🃏 {totalRounds} runde totale pentru {maxPlayers} jucători
               {' '} • Nivelele de 8 și 1 se joacă de {maxPlayers}× (câte unul per dealer)
+            </p>
+          </div>
+
+          {/* Password (optional) */}
+          <div className="form-group">
+            <label htmlFor="table-pw">Parolă masă (opțional)</label>
+            <div className="pw-input-row">
+              <input
+                id="table-pw"
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Lasă gol pentru masă publică"
+                className="form-input"
+                maxLength={32}
+              />
+              <button type="button" className="pw-toggle" onClick={() => setShowPw(v => !v)}>
+                {showPw ? '🙈' : '👁'}
+              </button>
+            </div>
+            <p className="form-hint">
+              {password
+                ? '🔒 Masă privată — doar cei cu parola pot intra'
+                : '🌐 Masă publică — oricine o poate vedea și intra'}
             </p>
           </div>
 
