@@ -47,7 +47,7 @@ export default function BiddingPanel({ table, round }: Props) {
       {/* Round info */}
       <div className="bidding-info">
         <span className="bidding-round-label">
-          {cardsPerPlayer} {cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător
+          Licitează — {cardsPerPlayer} {cardsPerPlayer === 1 ? 'carte' : 'cărți'} per jucător
         </span>
         {trumpSuit ? (
           <span className="bidding-trump" style={{ color: SUIT_COLORS[trumpSuit] }}>
@@ -76,7 +76,7 @@ export default function BiddingPanel({ table, round }: Props) {
       {/* Bidding buttons */}
       {isMyTurn ? (
         <div className="bidding-actions">
-          <p className="bidding-prompt">Tu licitezi (0–{cardsPerPlayer}):</p>
+          <p className="bidding-prompt">Câte ture vei câștiga? (0–{cardsPerPlayer})</p>
           <div className="bid-buttons">
             {Array.from({ length: cardsPerPlayer + 1 }, (_, i) => i).map(n => (
               <button
@@ -91,7 +91,7 @@ export default function BiddingPanel({ table, round }: Props) {
                 disabled={n === forbiddenBid}
                 title={
                   n === forbiddenBid
-                    ? 'Licitație interzisă — suma ar fi egală cu totalul'
+                    ? 'Interzis — suma licitațiilor ar egala totalul de ture'
                     : ''
                 }
               >
@@ -102,7 +102,7 @@ export default function BiddingPanel({ table, round }: Props) {
           </div>
           {forbiddenBid !== null && (
             <p className="forbidden-note">
-              ⚠ Nu poți licita {forbiddenBid} — suma ar fi egală cu {cardsPerPlayer}
+              ⚠ Nu poți licita {forbiddenBid} — suma ar egaliza totalul de {cardsPerPlayer} ture
             </p>
           )}
         </div>

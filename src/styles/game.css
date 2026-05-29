@@ -137,6 +137,48 @@
   background: rgba(0,0,0,0.5); padding: 2px 7px; border-radius: 9999px;
 }
 
+/* ─── My score widget (bottom-left) ─────────────────────────────────────── */
+
+.my-score-widget {
+  position: fixed;
+  bottom: 120px; left: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: rgba(0,0,0,0.65);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 8px 12px;
+  backdrop-filter: blur(6px);
+  z-index: 15;
+  min-width: 90px;
+}
+.my-score-name { font-size: 0.72rem; color: rgba(255,255,255,0.5); font-weight: 600; }
+.my-score-ture { font-size: 0.82rem; color: rgba(255,255,255,0.85); }
+.ture-hit  { color: var(--color-success); font-weight: 700; }
+.ture-over { color: var(--color-error); }
+.ture-sep  { color: rgba(255,255,255,0.3); margin: 0 1px; }
+.ture-label { font-size: 0.68rem; color: rgba(255,255,255,0.4); }
+.my-score-delta {
+  font-size: 1rem; font-weight: 800; letter-spacing: -0.02em;
+}
+.my-score-total { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+.delta-pos  { color: var(--color-success); }
+.delta-neg  { color: var(--color-error); }
+.delta-zero { color: rgba(255,255,255,0.35); }
+
+/* ─── Opponent points badge ──────────────────────────────────────────────── */
+
+.opp-delta {
+  font-size: 0.72rem; font-weight: 700;
+  padding: 1px 6px; border-radius: 9999px;
+  margin-left: 2px;
+}
+.opp-delta--pos  { background: rgba(76,175,80,0.2);  color: var(--color-success); }
+.opp-delta--neg  { background: rgba(239,83,80,0.2);  color: var(--color-error);   }
+.opp-delta--zero { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); }
+
+/* ─── Scoreboard ture label ──────────────────────────────────────────────── */
+.sb-ture-label { font-size: 0.62rem; color: rgba(255,255,255,0.35); }
+
 /* ─── Opponent Players (absolute arc at top) ────────────────────────────── */
 
 .opponent {

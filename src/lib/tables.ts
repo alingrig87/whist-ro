@@ -27,7 +27,7 @@ import {
   getTotalRounds,
   getBiddingOrder,
 } from './cards'
-import { isBotUid, BOT_NAMES } from './bots'
+import { isBotUid, BOT_CONFIGS } from './bots'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -126,10 +126,11 @@ export async function deleteTable(tableId: string): Promise<void> {
  */
 export async function addBotPlayer(tableId: string, botNumber: number): Promise<void> {
   const uid = `bot-${botNumber}`
+  const cfg = BOT_CONFIGS[uid] ?? { name: `Bot ${botNumber}`, photoURL: '' }
   await setDoc(doc(db, 'tables', tableId, 'players', uid), {
-    displayName: BOT_NAMES[uid] ?? `🤖 Bot ${botNumber}`,
-    photoURL: '',
-    ready: true,   // Bots are always ready
+    displayName: cfg.name,
+    photoURL: cfg.photoURL,
+    ready: true,
     isBot: true,
     joinedAt: serverTimestamp(),
   })

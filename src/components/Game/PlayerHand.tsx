@@ -101,7 +101,7 @@ export default function PlayerHand({ table, round, hand, duringBidding = false }
     : isMyTurn
       ? ledSuit
         ? `Trebuie să joci ${SUIT_SYMBOLS[ledSuit]}${round.trumpSuit ? ' sau atu' : ''}`
-        : '🃏 Trage o carte în sus sau fă dublu-click'
+        : '🃏 Tu deschizi tura — trage în sus sau dublu-click'
       : '⏳ Aștepți rândul tău...'
 
   return (

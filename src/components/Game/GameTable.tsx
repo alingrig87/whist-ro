@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react'
+
+function calcDelta(bid: number, won: number): number {
+  return bid === won ? 5 + bid : -Math.abs(bid - won)
+}
 import { useAuth } from '../../context/AuthContext'
 import { resolveTrick, getBiddingOrder, getNextBidder, SUIT_SYMBOLS, SUIT_COLORS } from '../../lib/cards'
 import { finalizeTrick, submitBid, playCard, transitionToPlaying } from '../../lib/tables'
 import { applyRoundScores } from '../../lib/scoring'
-import { isBotUid, getBotBid, getBotCard, BOT_DELAY_MS } from '../../lib/bots'
+import { isBotUid, getSmartBid, getBotCard, BOT_DELAY_MS } from '../../lib/bots'
 import type { TableMeta, RoundState, TablePlayer, PlayerHand, Card } from '../../types'
 import BiddingPanel from './BiddingPanel'
 import PlayerHandComponent from './PlayerHand'
@@ -108,12 +112,12 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
     const timer = setTimeout(async () => {
       try {
         if (round.phase === 'bidding') {
-          const bid = getBotBid(round, playerOrder)
+          const bid = getSmartBid(botHand ?? { cards: [] }, round, playerOrder)
           const biddingOrder = getBiddingOrder(playerOrder, round.dealer)
           const next = getNextBidder(round.bids, biddingOrder, round.currentPlayer)
           await submitBid(table.id, table.currentRound, round.currentPlayer, bid, next)
         } else if (round.phase === 'playing' && botHand && botHand.cards.length > 0) {
-          const cardId = getBotCard(botHand, round)
+          const cardId = getBotCard(botHand, round, round.currentPlayer)
           await playCard(table.id, table.currentRound, round.currentPlayer, cardId, botHand, playerOrder, round.currentTrick.length)
         }
       } catch (e) {
@@ -171,7 +175,7 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
 
       {/* Round badge — prominent, top-center */}
       <div className="round-badge">
-        <span className="round-badge-num">Runda {round.roundNumber} / {table.totalRounds}</span>
+        <span className="round-badge-num">Joc {round.roundNumber} / {table.totalRounds}</span>
         <span className="round-badge-cards">{round.cardsPerPlayer} {round.cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător</span>
         {round.trumpCard
           ? <TrumpCardBadge card={round.trumpCard} />
@@ -179,14 +183,44 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
         }
       </div>
 
+      {/* My own score delta — shown bottom-left */}
+      {(() => {
+        const myUid = user?.uid ?? ''
+        const myBid = round.bids[myUid] ?? -1
+        const myWon = round.tricksWon[myUid] ?? 0
+        const myDelta = myBid >= 0 ? calcDelta(myBid, myWon) : null
+        const myTotal = table.scores[myUid] ?? 0
+        return (
+          <div className="my-score-widget">
+            <span className="my-score-name">{user?.displayName?.split(' ')[0] ?? 'Tu'}</span>
+            {myBid >= 0 && (
+              <span className="my-score-ture">
+                <span className={myWon === myBid ? 'ture-hit' : myWon > myBid ? 'ture-over' : ''}>{myWon}</span>
+                <span className="ture-sep">/</span>
+                <span>{myBid}</span>
+                <span className="ture-label"> ture</span>
+              </span>
+            )}
+            {myDelta !== null && (
+              <span className={`my-score-delta ${myDelta > 0 ? 'delta-pos' : myDelta < 0 ? 'delta-neg' : 'delta-zero'}`}>
+                {myDelta > 0 ? `+${myDelta}` : myDelta} pct
+              </span>
+            )}
+            <span className="my-score-total">{myTotal} total</span>
+          </div>
+        )
+      })()}
+
       {/* Opponents arranged in arc */}
-      {opponents.map(({ uid, relativePos }, i) => {
+      {opponents.map(({ uid, relativePos }) => {
         const player = players[uid]
-        const bid = round.bids[uid]
+        const bid = round.bids[uid] ?? -1
         const won = round.tricksWon[uid] ?? 0
         const isCurrentPlayer = round.currentPlayer === uid
         const isBot = isBotUid(uid)
         const cardsLeft = Math.max(0, round.cardsPerPlayer - won)
+        const delta = bid >= 0 ? calcDelta(bid, won) : null
+        const isPlaying = round.phase === 'playing' || round.phase === 'scoring'
 
         return (
           <div
@@ -204,10 +238,21 @@ export default function GameTable({ table, round, hand, players, allHands }: Pro
               <div className="opponent-details">
                 <span className="opponent-name">{player?.displayName ?? uid}</span>
                 <span className="opponent-bid-info">
-                  {bid >= 0 ? `${won}/${bid} mâini` : '…'}
+                  {bid >= 0 ? (
+                    <>
+                      <span className={won === bid ? 'ture-hit' : ''}>{isPlaying ? won : '?'}</span>
+                      /{bid} ture
+                    </>
+                  ) : '…'}
                 </span>
               </div>
               {isCurrentPlayer && <span className="opponent-turn">🔄</span>}
+              {/* Points badge */}
+              {delta !== null && (
+                <span className={`opp-delta ${delta > 0 ? 'opp-delta--pos' : delta < 0 ? 'opp-delta--neg' : 'opp-delta--zero'}`}>
+                  {delta > 0 ? `+${delta}` : delta}
+                </span>
+              )}
             </div>
 
             {/* Face-down cards */}
@@ -281,7 +326,7 @@ function ScoringBanner({
 }) {
   return (
     <div className="scoring-banner">
-      <div className="scoring-banner-title">Runda {round.roundNumber} completă!</div>
+      <div className="scoring-banner-title">Jocul {round.roundNumber} s-a terminat!</div>
       <div className="scoring-banner-rows">
         {playerOrder.map(uid => {
           const bid  = round.bids[uid] ?? 0
@@ -299,7 +344,7 @@ function ScoringBanner({
           )
         })}
       </div>
-      <div className="scoring-banner-hint">Se trece la runda următoare...</div>
+      <div className="scoring-banner-hint">Urmează jocul {round.roundNumber + 1}...</div>
     </div>
   )
 }

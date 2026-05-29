@@ -33,7 +33,7 @@ export default function ScoreBoard({ table, round, players }: Props) {
       {/* Round info header */}
       <div className="sb-round-info">
         <div className="sb-round-title">
-          Runda <strong>{round.roundNumber}</strong> / {table.totalRounds}
+          Joc <strong>{round.roundNumber}</strong> / {table.totalRounds}
         </div>
         <div className="sb-round-details">
           <span>{round.cardsPerPlayer} {round.cardsPerPlayer === 1 ? 'carte' : 'cărți'}/jucător</span>
@@ -104,10 +104,10 @@ export default function ScoreBoard({ table, round, players }: Props) {
               </div>
 
               {/* Bid vs won */}
-              <div className="sb-bid-won">
+              <div className="sb-bid-won" title="ture câștigate / licitate">
                 {hasBid ? (
                   <span className={hitBid ? 'bw-hit' : missBid ? 'bw-miss' : ''}>
-                    {isPlaying ? `${won}/${bid}` : `?/${bid}`}
+                    {isPlaying ? `${won}/${bid}` : `?/${bid}`} <span className="sb-ture-label">ture</span>
                   </span>
                 ) : (
                   <span className="bw-waiting">…</span>
