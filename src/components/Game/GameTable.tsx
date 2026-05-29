@@ -31,12 +31,12 @@ interface Props {
  * total: number of opponents
  */
 function getOpponentStyle(pos: number, total: number): React.CSSProperties {
-  const fraction = pos / (total + 1) // 0..1 from left to right
-  const left = 8 + fraction * 84   // 8% → 92%
+  const fraction = pos / (total + 1)
+  const left = 10 + fraction * 80        // 10% → 90%
 
-  // Arc: centre sits higher than edges
-  const distFromCentre = Math.abs(fraction - 0.5) * 2  // 0 at centre, 1 at edges
-  const top = 4 + distFromCentre * 10                  // 4% (centre) → 14% (edges)
+  // Arc: edges are slightly lower than centre — clear of the round badge
+  const distFromCentre = Math.abs(fraction - 0.5) * 2
+  const top = 13 + distFromCentre * 7   // 13% (centre) → 20% (edges)
 
   return { left: `${left}%`, top: `${top}%` }
 }

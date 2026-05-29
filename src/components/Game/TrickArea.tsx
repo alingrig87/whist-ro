@@ -46,7 +46,7 @@ export default function TrickArea({ trick, players, trumpSuit, playerOrder, myUi
 
         {trick.length === 0 && (
           <div className="trick-empty">
-            <span>Levata curentă</span>
+            <span>Joacă o carte</span>
           </div>
         )}
       </div>
