@@ -744,6 +744,61 @@ button { cursor: pointer; font-family: inherit; font-size: 0.95rem; border: none
 
 .profile-actions { margin-top: 1.5rem; display: flex; gap: 0.75rem; }
 
+/* Credits strip in profile */
+.profile-credits {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,213,79,0.08); border: 1px solid rgba(255,213,79,0.25);
+  border-radius: var(--radius-lg); padding: 10px 16px;
+  cursor: pointer; margin-bottom: 1rem;
+  transition: background 0.15s;
+}
+.profile-credits:hover { background: rgba(255,213,79,0.14); }
+.profile-credits-icon { font-size: 1.2rem; }
+.profile-credits-val  { font-size: 1.1rem; font-weight: 800; color: var(--color-accent); }
+.profile-credits-label { font-size: 0.82rem; color: var(--color-text-muted); }
+.profile-credits-cost  { font-size: 0.75rem; color: var(--color-text-dim); }
+.profile-credits-cta   { margin-left: auto; font-size: 0.78rem; color: var(--color-accent); font-weight: 600; }
+
+/* Profile game cards */
+.profile-games { display: flex; flex-direction: column; gap: 10px; }
+
+.profile-game-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.profile-game-card--win { border-left-color: var(--color-accent); }
+
+.pgc-header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--color-surface-2);
+  font-size: 0.82rem;
+}
+.pgc-date   { color: var(--color-text-muted); min-width: 80px; }
+.pgc-result { font-weight: 700; }
+.pgc-result--win { color: var(--color-accent); }
+.pgc-my-score { color: var(--color-primary-light); font-weight: 600; }
+.pgc-rounds { margin-left: auto; color: var(--color-text-dim); font-size: 0.75rem; }
+
+.pgc-players { display: flex; flex-direction: column; }
+.pgc-player {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; font-size: 0.83rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.pgc-player:last-child { border-bottom: none; }
+.pgc-player--me { background: rgba(76,175,80,0.07); }
+.pgc-medal  { font-size: 0.95rem; width: 22px; text-align: center; }
+.pgc-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.pgc-avatar--placeholder {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
+}
+.pgc-name  { flex: 1; font-weight: 500; }
+.pgc-score { font-weight: 700; color: var(--color-accent); }
+
 /* ─── Group game history cards ──────────────────────────────────────────── */
 
 .group-game-card {

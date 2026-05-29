@@ -44,7 +44,7 @@ function fisherYates<T>(arr: T[]): T[] {
 
 // ─── Table CRUD ───────────────────────────────────────────────────────────────
 
-export const MAX_ACTIVE_TABLES_PER_USER = 1
+export const MAX_ACTIVE_TABLES_PER_USER = 3
 
 export async function createTable(
   name: string,
@@ -63,7 +63,7 @@ export async function createTable(
   const activeSnap = await getDocs(activeQ)
   if (activeSnap.size >= MAX_ACTIVE_TABLES_PER_USER) {
     throw new Error(
-      'Ai deja o masă activă. Închide masa curentă înainte să creezi una nouă.',
+      `Ai deja ${MAX_ACTIVE_TABLES_PER_USER} mese active. Închide o masă înainte să creezi una nouă.`,
     )
   }
 
