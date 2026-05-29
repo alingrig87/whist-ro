@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { setReady, startGame, leaveTable, addBotPlayer, removeBotPlayer } from '../../lib/tables'
 import { isBotUid } from '../../lib/bots'
 import type { TableMeta, TablePlayer } from '../../types'
+import { CREDITS_PER_GAME } from '../../types'
+import CreditsModal from '../CreditsModal'
 
 interface Props {
   table: TableMeta
@@ -22,16 +25,20 @@ const MODE_DESC = {
 export default function WaitingRoom({ table, players }: Props) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
+  const [showCredits, setShowCredits] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   const playerList = Object.values(players)
   const humanPlayers = playerList.filter(p => !p.isBot)
   const botPlayers = playerList.filter(p => p.isBot)
   const myPlayer = user ? players[user.uid] : undefined
   const isHost = user?.uid === table.createdBy
+  const myCredits = profile?.credits ?? 0
+  const hasCredits = myCredits >= CREDITS_PER_GAME
 
   // All non-bot players must be ready; bots are always ready
   const allReady = playerList.length >= 3 && humanPlayers.every(p => p.ready)
-  const canStart = isHost && allReady && playerList.length >= 3
+  const canStart = isHost && allReady && playerList.length >= 3 && hasCredits
 
   // Find next available bot slot (1..5)
   const usedBotNumbers = botPlayers.map(p => parseInt(p.uid.replace('bot-', ''), 10))
@@ -44,7 +51,12 @@ export default function WaitingRoom({ table, players }: Props) {
   }
 
   const handleStart = async () => {
-    await startGame(table.id, playerList, table.gameMode)
+    setStartError(null)
+    try {
+      await startGame(table.id, playerList, table.gameMode)
+    } catch (e) {
+      setStartError(e instanceof Error ? e.message : 'Eroare la pornire')
+    }
   }
 
   const handleLeave = async () => {
@@ -66,6 +78,7 @@ export default function WaitingRoom({ table, players }: Props) {
   const totalRounds = table.roundSequence.length || (3 * table.maxPlayers + 12)
 
   return (
+    <>
     <div className="waiting-room">
       <div className="waiting-card">
         {/* Table info */}
@@ -187,6 +200,17 @@ export default function WaitingRoom({ table, players }: Props) {
           </button>
         </div>
 
+        {/* Credits status */}
+        <div className={`credits-status ${!hasCredits ? 'credits-status--low' : ''}`}>
+          <span>🪙 {myCredits} credite</span>
+          <span className="credits-cost">· Joc: {CREDITS_PER_GAME} credite</span>
+          <button className="credits-buy-link" onClick={() => setShowCredits(true)}>
+            {hasCredits ? 'Cumpără mai multe' : '⚠️ Insuficiente — Cumpără'}
+          </button>
+        </div>
+
+        {startError && <div className="form-error">{startError}</div>}
+
         {/* Actions */}
         <div className="waiting-actions">
           <button className="btn-secondary" onClick={handleLeave}>
@@ -222,6 +246,11 @@ export default function WaitingRoom({ table, players }: Props) {
         </div>
       </div>
     </div>
+
+    {showCredits && (
+      <CreditsModal credits={myCredits} onClose={() => setShowCredits(false)} />
+    )}
+  </>
   )
 }
 

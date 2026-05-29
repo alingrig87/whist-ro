@@ -25,7 +25,11 @@ export interface UserProfile {
   totalGames: number
   totalWins: number
   totalScore: number
+  credits: number
 }
+
+export const CREDITS_PER_GAME   = 10
+export const CREDITS_NEW_USER   = 100
 
 // ─── Table Types ──────────────────────────────────────────────────────────────
 

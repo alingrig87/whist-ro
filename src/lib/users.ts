@@ -5,10 +5,12 @@ import {
   updateDoc,
   serverTimestamp,
   increment,
+  runTransaction,
 } from 'firebase/firestore'
 import type { User } from 'firebase/auth'
 import { db } from './firebase'
 import type { UserProfile } from '../types'
+import { CREDITS_NEW_USER, CREDITS_PER_GAME } from '../types'
 
 // ─── Profile Creation ─────────────────────────────────────────────────────────
 
@@ -24,6 +26,7 @@ export async function ensureUserProfile(user: User): Promise<void> {
       totalGames: 0,
       totalWins: 0,
       totalScore: 0,
+      credits: CREDITS_NEW_USER,
     })
   }
 }
@@ -40,10 +43,44 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     email: d.email,
     photoURL: d.photoURL,
     createdAt: d.createdAt?.toDate() ?? new Date(),
-    totalGames: d.totalGames,
-    totalWins: d.totalWins,
-    totalScore: d.totalScore,
+    totalGames: d.totalGames ?? 0,
+    totalWins: d.totalWins ?? 0,
+    totalScore: d.totalScore ?? 0,
+    credits: d.credits ?? 0,
   }
+}
+
+// ─── Credits ──────────────────────────────────────────────────────────────────
+
+/**
+ * Deducts CREDITS_PER_GAME from each non-bot player atomically.
+ * Throws if any player has insufficient credits.
+ */
+export async function deductGameCredits(playerUids: string[]): Promise<void> {
+  const humanUids = playerUids.filter(uid => !uid.startsWith('bot-'))
+
+  await runTransaction(db, async tx => {
+    // Read all profiles first
+    const snaps = await Promise.all(humanUids.map(uid => tx.get(doc(db, 'users', uid))))
+
+    // Check everyone has enough credits
+    for (const snap of snaps) {
+      const credits = snap.data()?.credits ?? 0
+      if (credits < CREDITS_PER_GAME) {
+        throw new Error(`${snap.data()?.displayName ?? snap.id} nu are suficiente credite`)
+      }
+    }
+
+    // Deduct atomically
+    for (const uid of humanUids) {
+      tx.update(doc(db, 'users', uid), { credits: increment(-CREDITS_PER_GAME) })
+    }
+  })
+}
+
+export async function getCredits(uid: string): Promise<number> {
+  const snap = await getDoc(doc(db, 'users', uid))
+  return snap.data()?.credits ?? 0
 }
 
 // ─── Stats Update (called by scoring.ts) ─────────────────────────────────────

@@ -28,6 +28,7 @@ import {
   getBiddingOrder,
 } from './cards'
 import { isBotUid, BOT_CONFIGS } from './bots'
+import { deductGameCredits } from './users'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,6 +148,9 @@ export async function startGame(
   players: TablePlayer[],
   gameMode: GameMode,
 ): Promise<void> {
+  // Deduct credits from all human players (throws if insufficient)
+  await deductGameCredits(players.map(p => p.uid))
+
   const playerOrder = fisherYates(players.map(p => p.uid))
   const scores = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
   const consecutiveHits = Object.fromEntries(playerOrder.map(uid => [uid, 0]))
