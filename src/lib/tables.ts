@@ -468,14 +468,17 @@ export function subscribeToMyActiveTables(
   uid: string,
   onData: (tables: TableMeta[]) => void,
 ): Unsubscribe {
+  // No orderBy — avoids composite index requirement; sort client-side
   const q = query(
     collection(db, 'tables'),
     where('createdBy', '==', uid),
     where('status', 'in', ['waiting', 'playing']),
-    orderBy('createdAt', 'desc'),
   )
   return onSnapshot(q, snap => {
-    onData(snap.docs.map(d => parseTableMeta(d.id, d.data() as Record<string, unknown>)))
+    const tables = snap.docs
+      .map(d => parseTableMeta(d.id, d.data() as Record<string, unknown>))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    onData(tables)
   })
 }
 
