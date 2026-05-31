@@ -837,6 +837,36 @@ button { cursor: pointer; font-family: inherit; font-size: 0.95rem; border: none
 
 .group-desc { color: var(--color-text-muted); font-size: 0.88rem; margin-top: 4px; }
 
+/* ─── My active tables section ──────────────────────────────────────────── */
+
+.my-tables-section { margin-bottom: 1.5rem; }
+
+.my-tables-list { display: flex; flex-direction: column; gap: 6px; margin-top: 0.5rem; }
+
+.my-table-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+
+.my-table-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+.my-table-name {
+  font-weight: 600; font-size: 0.9rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.my-table-status {
+  font-size: 0.75rem; padding: 2px 8px;
+  border-radius: 9999px; white-space: nowrap;
+}
+.my-table-status--waiting { background: rgba(255,213,79,0.15); color: var(--color-accent); }
+.my-table-status--playing { background: rgba(76,175,80,0.15);  color: var(--color-success); }
+
+.my-table-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
 /* ─── Password input ────────────────────────────────────────────────────── */
 
 .pw-input-row { display: flex; gap: 6px; }

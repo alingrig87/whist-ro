@@ -462,6 +462,27 @@ export async function getRoundResults(tableId: string): Promise<RoundResult[]> {
   return results.sort((a, b) => a.roundIndex - b.roundIndex)
 }
 
+// ─── My Active Tables ─────────────────────────────────────────────────────────
+
+export function subscribeToMyActiveTables(
+  uid: string,
+  onData: (tables: TableMeta[]) => void,
+): Unsubscribe {
+  const q = query(
+    collection(db, 'tables'),
+    where('createdBy', '==', uid),
+    where('status', 'in', ['waiting', 'playing']),
+    orderBy('createdAt', 'desc'),
+  )
+  return onSnapshot(q, snap => {
+    onData(snap.docs.map(d => parseTableMeta(d.id, d.data() as Record<string, unknown>)))
+  })
+}
+
+export async function closeTable(tableId: string): Promise<void> {
+  await updateDoc(doc(db, 'tables', tableId), { status: 'finished' })
+}
+
 // ─── Lobby Query ──────────────────────────────────────────────────────────────
 
 export function subscribeToOpenTables(

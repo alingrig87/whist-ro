@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { subscribeToOpenTables, joinTable } from '../../lib/tables'
+import { subscribeToOpenTables, subscribeToMyActiveTables, closeTable, joinTable } from '../../lib/tables'
 import { subscribeToMyGroups } from '../../lib/groups'
 import type { TableMeta, Group } from '../../types'
 import CreateTableModal from './CreateTableModal'
@@ -12,9 +12,11 @@ export default function LobbyPage() {
   const navigate = useNavigate()
 
   const [tables, setTables] = useState<TableMeta[]>([])
+  const [myTables, setMyTables] = useState<TableMeta[]>([])
   const [myGroups, setMyGroups] = useState<Group[]>([])
   const [showCreate, setShowCreate] = useState(false)
   const [joiningId, setJoiningId] = useState<string | null>(null)
+  const [closingId, setClosingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pwPrompt, setPwPrompt] = useState<{ tableId: string; tableName: string } | null>(null)
   const [pwInput, setPwInput] = useState('')
@@ -28,6 +30,12 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!user) return
     const unsub = subscribeToMyGroups(user.uid, setMyGroups)
+    return unsub
+  }, [user])
+
+  useEffect(() => {
+    if (!user) return
+    const unsub = subscribeToMyActiveTables(user.uid, setMyTables)
     return unsub
   }, [user])
 
@@ -82,6 +90,16 @@ export default function LobbyPage() {
     navigate(`/table/${tableId}`)
   }
 
+  const handleClose = async (tableId: string) => {
+    if (!confirm('Închizi această masă? Jucătorii vor fi eliminați.')) return
+    setClosingId(tableId)
+    try {
+      await closeTable(tableId)
+    } finally {
+      setClosingId(null)
+    }
+  }
+
   return (
     <div className="page lobby-page">
       {/* Header */}
@@ -106,6 +124,42 @@ export default function LobbyPage() {
 
       {/* Main content */}
       <main className="lobby-main">
+        {/* My active tables */}
+        {myTables.length > 0 && (
+          <section className="my-tables-section">
+            <h2 className="lobby-section-title">📋 Mesele mele active</h2>
+            <div className="my-tables-list">
+              {myTables.map(t => (
+                <div key={t.id} className="my-table-row">
+                  <div className="my-table-info">
+                    <span className="my-table-name">
+                      {t.passwordHash && '🔒 '}{t.name}
+                    </span>
+                    <span className={`my-table-status my-table-status--${t.status}`}>
+                      {t.status === 'waiting' ? '⏳ Așteptare' : '🎮 În joc'}
+                    </span>
+                  </div>
+                  <div className="my-table-actions">
+                    <button
+                      className="btn-secondary btn--sm"
+                      onClick={() => navigate(`/table/${t.id}`)}
+                    >
+                      Intră
+                    </button>
+                    <button
+                      className="btn-danger btn--sm"
+                      onClick={() => handleClose(t.id)}
+                      disabled={closingId === t.id}
+                    >
+                      {closingId === t.id ? '...' : 'Închide'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="lobby-top">
           <h2 className="lobby-section-title">Mese disponibile</h2>
           <button className="btn-primary" onClick={() => setShowCreate(true)}>
