@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent || ''
+  return /FBAN|FBAV|FB_IAB|Instagram|Twitter|Messenger|LinkedInApp|MicroMessenger|Line\/|Snapchat|TikTok|Pinterest/.test(ua)
+}
+
 export default function LoginPage() {
   const { signIn } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const inApp = isInAppBrowser()
 
   const handleSignIn = async () => {
     setLoading(true)
@@ -31,12 +38,28 @@ export default function LoginPage() {
           <div className="feature">👥 Grupuri cu prietenii</div>
         </div>
 
+        {inApp && (
+          <div className="inapp-warning">
+            <strong>⚠️ Browser incompatibil</strong>
+            <p>
+              Google nu permite autentificarea din Messenger / Instagram / Facebook.
+              Deschide linkul în <strong>Chrome</strong> sau <strong>Safari</strong>.
+            </p>
+            <button
+              className="btn-open-browser"
+              onClick={() => { window.open(window.location.href, '_blank') }}
+            >
+              Deschide în browser
+            </button>
+          </div>
+        )}
+
         {error && <div className="login-error">{error}</div>}
 
         <button
           className="btn-google"
           onClick={handleSignIn}
-          disabled={loading}
+          disabled={loading || inApp}
         >
           {loading ? (
             <span className="spinner-small" />
